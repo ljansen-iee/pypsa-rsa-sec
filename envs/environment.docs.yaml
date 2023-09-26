@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-name: pypsa-earth-docs
+name: pypsa-za2-docs
+
 channels:
 - conda-forge/label/shapely_dev
 - conda-forge

@@ -512,4 +512,4 @@ dependencies:
   - pybind11==2.10.4
   - tsam==2.2.2
   - vresutils==0.3.2.dev11+g150c1be
-prefix: /home/max/anaconda3/envs/pypsa-za2
+cond
