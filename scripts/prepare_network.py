@@ -356,8 +356,8 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             'prepare_network', 
             **{
-                'model_file':'validation-6',
-                'regions':'RSA',
+                'model_file':'grid-2040',
+                'regions':'11-supply',
                 'resarea':'redz',
                 'll':'copt',
                 'opts':'LC-3000SEG'

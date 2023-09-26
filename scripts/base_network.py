@@ -55,33 +55,24 @@ Outputs
         :scale: 33 %
 """
 
-import networkx as nx
-import pandas as pd
-import numpy as np
-from operator import attrgetter
-
-from vresutils.costdata import annuity
-
-import pypsa
 import geopandas as gpd
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pypsa
-from _helpers import save_to_geojson
 
 def create_network():
     n = pypsa.Network()
     n.name = 'PyPSA-ZA'
     return n
 
-def load_buses_and_lines(n):
+def load_buses_and_lines(n, line_config):
     buses = gpd.read_file(snakemake.input.buses)
     buses.set_index('name',drop=True,inplace=True)
-    if snakemake.wildcards.regions!='1-supply':
+    buses = buses[['POP2016','GVA2016']]
+    buses['v_nom'] = line_config['v_nom']
+    if snakemake.wildcards.regions != '1-supply':
         lines = gpd.read_file(snakemake.input.lines,index_col=[1])
-        lines = lines.drop('index',axis=1)
-    else:
-        lines = pd.DataFrame(index=[],columns=['name','bus0','bus1','length','num_parallel'])
+        lines = lines[['bus0','bus1','length',line_config['s_rating'] + "_limit"]]
     return buses, lines
 
 def set_snapshots(n,years):
@@ -107,45 +98,30 @@ def set_investment_periods(n,years):
         n.investment_period_weightings["years"] = [1]
         n.investment_period_weightings["objective"] = [1]
 
-def set_line_capacity(lines, parallel_lines, line_config):
-
-    # Calculate the cumlative transfer capacity for each of the parallel lines base on thermal limits and dreating by s_nom
-    for row in lines.index:
-        row_p = parallel_lines[(parallel_lines['bus0']==lines.loc[row,'bus0']) & (parallel_lines['bus1']==lines.loc[row,'bus1'])]
-        transf_cap = 0
-        for v in [vn for vn in [220, 275, 400, 765] if vn in row_p.columns]:
-            transf_cap += np.sqrt(3) * v * n.line_types.loc[line_config['type'][v], 'i_nom'] * row_p[v]*line_config['s_derating'][v]
-        lines.loc[row,'capacity'] = transf_cap.values
-
-    lines['DESIGN_VOL'] = 400
-    # drop duplicate rows where bus0, bus1 are same rows
-    lines = lines.drop_duplicates(subset=['bus0', 'bus1'])
-    return lines
-
 def add_components_to_network(n, buses, lines, line_config):
-    line_type = line_config['type'][line_config['v_nom']]
-    lines = lines.rename(columns={"capacity": "s_nom_min"})
-    lines = lines.assign(s_nom_extendable=True, type=line_type)
     n.import_components_from_dataframe(buses, "Bus")
-    n.import_components_from_dataframe(lines, "Line")
+    if snakemake.wildcards.regions != '1-supply':
+        lines['type'] = line_config['type'][line_config['v_nom']]
+        lines = lines.rename(columns={line_config['s_rating'] + "_limit": "s_nom_min"})
+        lines = lines.assign(s_nom_extendable=True, type=line_config['type'][line_config['v_nom']])
+        n.import_components_from_dataframe(lines, "Line")
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake(
-                        'base_network', 
-                        **{
-                            'model_file':'grid-2040',
-                            'regions':'11-supply',
-                        }
-                    )
-
+            'base_network', 
+            **{
+                'model_file':'grid-2040',
+                'regions':'11-supply',
+            }
+        )
+    line_config = snakemake.config['lines']
+    
     # Create network and load buses and lines data
     n = create_network()
-    buses, lines = load_buses_and_lines(n)
-    parallel_lines = pd.read_csv(snakemake.input.parallel_lines,index_col=0)
-    parallel_lines.columns = ['bus0','bus1']+list(parallel_lines.columns.drop(['bus0','bus1']).astype(float).astype(int))
-
+    buses, lines = load_buses_and_lines(n, line_config)
+  
     # Set snapshots and investment periods
     years = (
         pd.read_excel(
@@ -155,6 +131,7 @@ if __name__ == "__main__":
         )
         .loc[snakemake.wildcards.model_file,"simulation_years"]
     )
+
     if isinstance(years, int):
         # convert years into a list 
         years = [years]
@@ -163,15 +140,6 @@ if __name__ == "__main__":
     
     set_snapshots(n,years)
     set_investment_periods(n,years)
-    
-    # Set line capacity and add components to network
-    line_config = snakemake.config['lines']
-    save_to_geojson(buses.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.input.buses)
-    buses.drop('geometry',axis=1,inplace=True)
-    if not lines.empty:
-        lines = set_line_capacity(lines, parallel_lines, line_config)
-        save_to_geojson(lines.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.input.lines)
-        lines.drop('geometry',axis=1,inplace=True)
     add_components_to_network(n, buses, lines, line_config)
     
     n.export_to_netcdf(snakemake.output[0])
