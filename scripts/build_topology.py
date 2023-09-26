@@ -122,6 +122,10 @@ def calc_parallel_lines(lines):
     parallel_lines = parallel_lines[parallel_lines['bus0']!=parallel_lines['bus1']]
     parallel_lines['bus0'], parallel_lines['bus1'] = np.sort(parallel_lines[['bus0', 'bus1']].values, axis=1).T
     parallel_lines = parallel_lines.pivot_table(index=["bus0", "bus1"], columns="DESIGN_VOL", values="count", aggfunc='sum',fill_value=0).reset_index()
+    
+    limits = lines[['bus0','bus1','thermal_limit','SIL_limit','St_Clair_limit']].groupby(['bus0','bus1']).sum()
+    parallel_lines = parallel_lines.merge(limits[['thermal_limit','SIL_limit','St_Clair_limit']],on=['bus0','bus1'],how='left')
+    
     return parallel_lines
 
 def extend_topology(lines, regions, centroids):
@@ -140,6 +144,42 @@ def extend_topology(lines, regions, centroids):
     lines = pd.concat([lines,missing_lines])
 
     return lines
+
+def calc_line_limits(length, voltage, line_config):
+    # digitised from https://www.researchgate.net/figure/The-St-Clair-curve-as-based-on-the-results-of-14-retrieved-from-15-is-used-to_fig3_318692193
+    if voltage in [220, 275, 400, 765]:
+        thermal = line_config['thermal'][voltage]
+        SIL = line_config['SIL'][voltage]
+
+        if length <= 80:
+            St_Clair = thermal
+        else:
+            St_Clair = SIL * 53.736 * (length/1000) ** -0.65
+    else:
+        thermal = np.nan
+        SIL = np.nan
+        St_Clair = np.nan
+
+    return pd.Series([thermal, SIL, St_Clair])
+
+# def set_line_capacity(lines, parallel_lines, line_config):
+
+#     # Calculate the cumlative transfer capacity for each of the parallel lines base on thermal limits and dreating by s_nom
+#     for row in lines.index:
+#         row_p = parallel_lines[(parallel_lines['bus0']==lines.loc[row,'bus0']) & (parallel_lines['bus1']==lines.loc[row,'bus1'])]
+#         transf_cap = 0
+#         for v in [vn for vn in [220, 275, 400, 765] if vn in row_p.columns]:
+#             if line_config['s_rating'] != 'StClair':
+#                 transf_cap += line_config[line_config['s_rating']][v]
+#             else:
+
+#         lines.loc[row,'capacity'] = transf_cap.values
+
+#     lines['DESIGN_VOL'] = 400
+#     # drop duplicate rows where bus0, bus1 are same rows
+#     lines = lines.drop_duplicates(subset=['bus0', 'bus1'])
+#     return lines
+
 
 def build_topology():
     # Read in Eskom GIS data for existing and planned transmission lines
@@ -185,8 +225,13 @@ def build_topology():
     if lines.empty:
         lines = pd.DataFrame(index=[],columns=['name','bus0','bus1','length','transfer_capacity',f"equiv. {int(line_config['v_nom'])}kV num_parallel"])
     else:
-        lines['length'] = lines.apply(haversine_length, axis=1) * snakemake.config['lines']['length_factor']
+        lines['direct_length'] = lines.apply(haversine_length, axis=1) * snakemake.config['lines']['length_factor']
     
+    lines['actual_length'] = lines['geometry'].length
+    line_limits = lines.apply(lambda row: calc_line_limits(row['actual_length'], row['DESIGN_VOL'], line_config), axis=1)
+    lines['thermal_limit'], lines['SIL_limit'], lines['St_Clair_limit'] = line_limits[0], line_limits[1], line_limits[2]
+
+
     parallel_lines = calc_parallel_lines(lines)
 
     v_nom = line_config['v_nom']
