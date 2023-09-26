@@ -50,25 +50,10 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import LineString, Point
 import numpy as np
-# import rasterstats
 from operator import attrgetter
-# from vresutils.costdata import annuity
-# from vresutils.shapes import haversine
 import os
 import pypsa
 from _helpers import save_to_geojson
-
-def convert_lines_to_gdf(lines,centroids):
-    gdf = gpd.GeoDataFrame(lines)
-    linestrings = []
-    for i, row in lines.iterrows():
-        point1 = centroids[row['bus0']]
-        point2 = centroids[row['bus1']]
-        linestring = LineString([point1, point2])
-        linestrings.append(linestring)
-    gdf.set_geometry(linestrings,inplace=True)
-    gdf.set_crs(snakemake.config["crs"]["geo_crs"],inplace=True)
-    return gdf
 
 def check_centroid_in_region(regions,centroids):
     idx = regions.index[~centroids.intersects(regions['geometry'])]
@@ -117,24 +102,25 @@ def build_line_topology(lines, regions):
 
     return lines
 
-def calc_parallel_lines(lines):
-    parallel_lines = lines.groupby(['bus0','bus1','DESIGN_VOL']).count()['id'].reset_index().rename(columns={'id':'count'})
-    parallel_lines = parallel_lines[parallel_lines['bus0']!=parallel_lines['bus1']]
-    parallel_lines['bus0'], parallel_lines['bus1'] = np.sort(parallel_lines[['bus0', 'bus1']].values, axis=1).T
-    parallel_lines = parallel_lines.pivot_table(index=["bus0", "bus1"], columns="DESIGN_VOL", values="count", aggfunc='sum',fill_value=0).reset_index()
-    
+def calc_inter_region_lines(lines):
+    inter_region_lines = lines.groupby(['bus0','bus1','DESIGN_VOL']).count()['id'].reset_index().rename(columns={'id':'count'})
+    inter_region_lines = inter_region_lines[inter_region_lines['bus0']!=inter_region_lines['bus1']]
+    inter_region_lines['bus0'], inter_region_lines['bus1'] = np.sort(inter_region_lines[['bus0', 'bus1']].values, axis=1).T
+    inter_region_lines = inter_region_lines.pivot_table(index=["bus0", "bus1"], columns="DESIGN_VOL", values="count", aggfunc='sum',fill_value=0).reset_index()
+    inter_region_lines.columns = [str(int(col)) if not isinstance(col, str) else col for col in inter_region_lines.columns]
+
     limits = lines[['bus0','bus1','thermal_limit','SIL_limit','St_Clair_limit']].groupby(['bus0','bus1']).sum()
-    parallel_lines = parallel_lines.merge(limits[['thermal_limit','SIL_limit','St_Clair_limit']],on=['bus0','bus1'],how='left')
-    
-    return parallel_lines
+    inter_region_lines = inter_region_lines.merge(limits[['thermal_limit','SIL_limit','St_Clair_limit']],on=['bus0','bus1'],how='left')
+       
+    return inter_region_lines
 
 def extend_topology(lines, regions, centroids):
     # get a list of lines between all adjacent regions
     adj_lines = gpd.sjoin(regions, regions, op='touches')['index_right'].reset_index()
     adj_lines.columns = ['bus0', 'bus1']
     adj_lines['bus0'], adj_lines['bus1'] = np.sort(adj_lines[['bus0', 'bus1']].values, axis=1).T # sort bus0 and bus1 alphabetically
-
     adj_lines = adj_lines.drop_duplicates(subset=['bus0', 'bus1'])
+
     missing_lines = adj_lines.merge(lines, on=['bus0', 'bus1'], how='left', indicator=True)
     missing_lines = missing_lines[missing_lines['_merge'] == 'left_only'][['bus0', 'bus1']]
     missing_lines['DESIGN_VOL'] = 0
@@ -162,38 +148,7 @@ def calc_line_limits(length, voltage, line_config):
 
     return pd.Series([thermal, SIL, St_Clair])
 
-# def set_line_capacity(lines, parallel_lines, line_config):
-
-#     # Calculate the cumlative transfer capacity for each of the parallel lines base on thermal limits and dreating by s_nom
-#     for row in lines.index:
-#         row_p = parallel_lines[(parallel_lines['bus0']==lines.loc[row,'bus0']) & (parallel_lines['bus1']==lines.loc[row,'bus1'])]
-#         transf_cap = 0
-#         for v in [vn for vn in [220, 275, 400, 765] if vn in row_p.columns]:
-#             if line_config['s_rating'] != 'StClair':
-#                 transf_cap += line_config[line_config['s_rating']][v]
-#             else:
-
-#         lines.loc[row,'capacity'] = transf_cap.values
-
-#     lines['DESIGN_VOL'] = 400
-#     # drop duplicate rows where bus0, bus1 are same rows
-#     lines = lines.drop_duplicates(subset=['bus0', 'bus1'])
-#     return lines
-
-
-def build_topology():
-    # Read in Eskom GIS data for existing and planned transmission lines
-    lines = gpd.read_file(snakemake.input.existing_lines)
-    lines['status'] = 'existing'
-    lines = lines.to_crs(snakemake.config["crs"]["distance_crs"])
-
-    if 'planned' in snakemake.config["lines"]["status"]:
-        planned_lines = gpd.read_file(snakemake.input.planned_lines)
-        planned_lines = planned_lines.to_crs(snakemake.config["crs"]["distance_crs"])
-        planned_lines['DESIGN_VOL'] = planned_lines['Voltage']
-        planned_lines['status'] = 'planned'
-        lines = pd.concat([lines[['status','DESIGN_VOL','geometry']],planned_lines[['status','DESIGN_VOL','geometry']]])
-
+def build_regions(line_config):
     # Load supply regions and calculate population per region
     regions = gpd.read_file(
         snakemake.input.supply_regions,
@@ -207,6 +162,32 @@ def build_topology():
     centroids = check_centroid_in_region(regions,centroids)
     centroids = centroids.to_crs(snakemake.config["crs"]["geo_crs"])
 
+    v_nom = line_config['v_nom']
+    buses = (
+        regions.assign(
+            x=centroids.map(attrgetter('x')),
+            y=centroids.map(attrgetter('y')),
+            v_nom=v_nom
+        )
+    )
+    buses.index.name='name' # ensure consistency for other scripts
+
+    return buses, regions, centroids
+
+def build_topology(regions, centroids, line_config):
+
+    # Read in Eskom GIS data for existing and planned transmission lines
+    lines = gpd.read_file(snakemake.input.existing_lines)
+    lines['status'] = 'existing'
+    lines = lines.to_crs(snakemake.config["crs"]["distance_crs"])
+
+    if 'planned' in snakemake.config["lines"]["status"]:
+        planned_lines = gpd.read_file(snakemake.input.planned_lines)
+        planned_lines = planned_lines.to_crs(snakemake.config["crs"]["distance_crs"])
+        planned_lines['DESIGN_VOL'] = planned_lines['Voltage']
+        planned_lines['status'] = 'planned'
+        lines = pd.concat([lines[['status','DESIGN_VOL','geometry']],planned_lines[['status','DESIGN_VOL','geometry']]])
+
     lines = build_line_topology(lines, regions)
   
     # Line length between regions if lines is empty, return empty dataframe
@@ -218,36 +199,23 @@ def build_topology():
         c = 2 * np.arcsin(np.sqrt(a))
         return c * 6371
     
-    line_config = snakemake.config['lines']
     if line_config['extend_topology']:
         lines = extend_topology(lines, regions, centroids)
-
-    if lines.empty:
-        lines = pd.DataFrame(index=[],columns=['name','bus0','bus1','length','transfer_capacity',f"equiv. {int(line_config['v_nom'])}kV num_parallel"])
-    else:
-        lines['direct_length'] = lines.apply(haversine_length, axis=1) * snakemake.config['lines']['length_factor']
     
     lines['actual_length'] = lines['geometry'].length
     line_limits = lines.apply(lambda row: calc_line_limits(row['actual_length'], row['DESIGN_VOL'], line_config), axis=1)
     lines['thermal_limit'], lines['SIL_limit'], lines['St_Clair_limit'] = line_limits[0], line_limits[1], line_limits[2]
 
-
-    parallel_lines = calc_parallel_lines(lines)
-
-    v_nom = line_config['v_nom']
-    buses = (
-        regions.assign(
-            x=centroids.map(attrgetter('x')),
-            y=centroids.map(attrgetter('y')),
-            v_nom=v_nom
-        )
+    inter_region_lines = calc_inter_region_lines(lines)
+    inter_region_lines['geometry'] = inter_region_lines.apply(
+        lambda row: LineString([centroids[row['bus0']], centroids[row['bus1']]]),
+        axis=1
     )
-    buses.index.name='name' # ensure consistency for other scripts
-   
-    if not lines.empty:
-        lines = convert_lines_to_gdf(lines,centroids)
 
-    return buses, lines, parallel_lines
+    inter_region_lines['length'] = inter_region_lines.apply(haversine_length, axis=1) * snakemake.config['lines']['length_factor']
+    inter_region_lines = gpd.GeoDataFrame(inter_region_lines, geometry='geometry', crs = snakemake.config["crs"]["geo_crs"])
+
+    return lines, inter_region_lines
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
@@ -258,12 +226,13 @@ if __name__ == "__main__":
                 'regions':'30-supply',
             }
         )
-
-    buses, lines, parallel_lines = build_topology()
+    line_config = snakemake.config['lines']
+    buses, regions, centroids = build_regions(line_config)
     save_to_geojson(buses.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.buses)
-    
-    if not lines.empty:
-        save_to_geojson(lines.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines)
+
+    if snakemake.wildcards.regions != '1-supply':
+        lines, inter_region_lines= build_topology(regions, centroids, line_config)
+        save_to_geojson(inter_region_lines.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines)
     else:
         save_to_geojson(buses.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines) # Dummy file will not get used if single node model  
-    parallel_lines.to_csv(snakemake.output.parallel_lines)
+    

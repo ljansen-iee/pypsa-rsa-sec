@@ -71,13 +71,11 @@ if config['enable']['build_topology']:
         threads: 1
         script: "scripts/build_topology.py"
 
-
 rule base_network:
     input:
         model_file="data/model_file.xlsx",
         buses='resources/buses_{regions}.geojson',
         lines='resources/lines_{regions}.geojson',
-        parallel_lines='resources/parallel_lines_{regions}.csv',
     output: "networks/base_{model_file}_{regions}.nc",
     benchmark: "benchmarks/base_{model_file}_{regions}"
     threads: 1
