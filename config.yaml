@@ -235,16 +235,19 @@ lines:
   threshold: 220 # only voltages >=220kV are considered in network capacity calculations
   v_nom: 400. #changed from 380kV from PyPSA-EUR to 400kV for South Africa
   type: 
-    220: 'Al/St 240/40 2-bundle 220.0' # proxy line properties from pypsa defaults
-    275: 'Al/St 240/40 2-bundle 220.0' # proxy line properties from pypsa defaults
     400: 'Al/St 240/40 4-bundle 380.0' # proxy line properties from pypsa defaults
-    765: 'Al/St 560/50 4-bundle 750.0' # proxy line properties from pypsa defaults
+  s_rating:  thermal # thermal, SIL, StClair
+  thermal:
+    220: 492  #(MW) 'Al/St 240/40 2-bundle 220.0' -> np.sqrt(3)*220*1.29
+    275: 921  #(MW) 'Al/St 240/40 2-bundle 220.0' -> np.sqrt(3)*275*1.935
+    400: 1788 #(MW) 'Al/St 240/40 4-bundle 380.0' -> np.sqrt(3)*400*2.58
+    765: 5512 #(MW) 'Al/St 560/50 4-bundle 750.0' -> np.sqrt(3)*765*4.16
+  SIL: # surge impedance loading
+    220: 122  #(MW) 
+    275: 245  #(MW) 
+    400: 602  #(MW) 
+    765: 2280 #(MW) 
   s_max_pu: 0.7 # n-1 approximation
-  s_derating: # derating factor from thermal limits
-    220: 0.248 # adjust from thermal rating to SIL at 400kV => 122MW/492MW 
-    275: 0.255 # adjust from thermal rating to SIL at 400kV => 245MW/921MW   
-    400: 0.337 # adjust from thermal rating to SIL at 400kV => 602MW/1788MW  
-    765: 0.414 # adjust from thermal rating to SIL at 400kV => 2280MW/5512MW  
   s_nom_max: .inf
   length_factor: 1.25
   dc_type: "DC_custom_linetype"
