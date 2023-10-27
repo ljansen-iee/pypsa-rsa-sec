@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText:  PyPSA-ZA2, PyPSA-ZA Authors
-# # SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT
 # coding: utf-8
 
 """

@@ -11,6 +11,15 @@ import pandas as pd
 from pypsa.descriptors import (Dict,get_active_assets)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
+
+def add_row_multi_index_df(df, add_index, level):
+    if level == 1:
+        idx = pd.MultiIndex.from_product([df.index.get_level_values(0),add_index])
+        add_df = pd.DataFrame(index=idx,columns=df.columns)
+        df = pd.concat([df,add_df]).sort_index()
+        df = df[~df.index.duplicated(keep='first')]
+    return df
+
 def sets_path_to_root(root_directory_name):
     """
     Search and sets path to the given root directory (root/path/file).
@@ -565,6 +574,22 @@ def read_geojson(fn):
 def pdbcast(v, h):
     return pd.DataFrame(v.values.reshape((-1, 1)) * h.values,
                         index=v.index, columns=h.index)
+
+
+def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
+    costs_yr = costs.columns.drop('unit')
+    costs.loc[costs.unit.str.contains("/kW")==True, costs_yr ] *= 1e3
+    costs.loc[costs.unit.str.contains("USD")==True, costs_yr ] *= USD_ZAR
+    costs.loc[costs.unit.str.contains("EUR")==True, costs_yr ] *= EUR_ZAR
+
+    costs.loc[costs.unit.str.contains('/kW')==True, 'unit'] = costs.loc[costs.unit.str.contains('/kW')==True, 'unit'].str.replace('/kW', '/MW')
+    costs.loc[costs.unit.str.contains('USD')==True, 'unit'] = costs.loc[costs.unit.str.contains('USD')==True, 'unit'].str.replace('USD', 'ZAR')
+    costs.loc[costs.unit.str.contains('EUR')==True, 'unit'] = costs.loc[costs.unit.str.contains('EUR')==True, 'unit'].str.replace('EUR', 'ZAR')
+
+    # Convert fuel cost from R/GJ to R/MWh
+    costs.loc[costs.unit.str.contains("R/GJ")==True, costs_yr ] *= 3.6 
+    costs.loc[costs.unit.str.contains("R/GJ")==True, 'unit'] = 'R/MWhe' 
+    return costs
 
 def map_generator_parameters(gens,first_year):
     ps_f = dict(

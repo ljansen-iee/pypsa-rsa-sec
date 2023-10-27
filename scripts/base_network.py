@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Creates the network topology for South Africa from either South Africa's shape file, GCCA map extract for 10 supply regions or 27-supply regions shape file as a PyPSA
+Creates the network topology for South Africa from either South Africa"s shape file, GCCA map extract for 10 supply regions or 27-supply regions shape file as a PyPSA
 network.
 
 Relevant Settings
@@ -56,73 +56,59 @@ Outputs
 """
 
 import geopandas as gpd
+import logging
 import numpy as np
 import pandas as pd
 import pypsa
+import re
 
 def create_network():
     n = pypsa.Network()
-    n.name = 'PyPSA-ZA'
+    n.name = "PyPSA-ZA"
     return n
 
 def load_buses_and_lines(n, line_config):
     buses = gpd.read_file(snakemake.input.buses)
-    buses.set_index('name',drop=True,inplace=True)
-    buses = buses[['POP2016','GVA2016']]
-    buses['v_nom'] = line_config['v_nom']
-    if snakemake.wildcards.regions != '1-supply':
+    buses.set_index("name",drop=True,inplace=True)
+    buses = buses[["POP2016","GVA2016"]]
+    buses["v_nom"] = line_config["v_nom"]
+    if snakemake.wildcards.regions != "1-supply":
         lines = gpd.read_file(snakemake.input.lines,index_col=[1])
-        lines = lines[['bus0','bus1','length',line_config['s_rating'] + "_limit"]]
+        lines = lines[["bus0","bus1","length",line_config["s_rating"] + "_limit"]]
     return buses, lines
 
-def set_snapshots(n,years):
-    snapshots = pd.DatetimeIndex([])
-    for y in years:
-        year_len = 8784 if (round(y/4,0)-y/4) == 0 else 8760
-        period = pd.date_range(start=f"{y}-01-01 00:00", freq='h', periods=year_len)
-        period = period[~((period.month == 2) & (period.day == 29))]  # exclude Feb 29 for leap years
-        snapshots = snapshots.append(period)
-    n.set_snapshots(pd.MultiIndex.from_arrays([snapshots.year, snapshots]))
-
-def set_investment_periods(n,years):
-    n.investment_periods = years
-    if len(years) > 1:
-        n.investment_period_weightings["years"] = list(np.diff(years)) + [5]
-        T = 0
-        for period, nyears in n.investment_period_weightings.years.items():
-            discounts = [(1 / (1 + snakemake.config['costs']['discountrate']) ** t) for t in range(T, T + nyears)]
-            n.investment_period_weightings.at[period, "objective"] = sum(discounts)
-            T += nyears
-        n.investment_period_weightings
+def set_snapshots(n, years):
+    if n._multi_invest:
+        snapshots = pd.DatetimeIndex([])
+        for y in years:
+            period = pd.date_range(start = f"{y}-01-01 00:00", end = f"{y}-12-31 23:00", freq="H")
+            period = period[~((period.month == 2) & (period.day == 29))]  # exclude Feb 29 for leap years
+            snapshots = snapshots.append(period)
+        n.set_snapshots(pd.MultiIndex.from_arrays([snapshots.year, snapshots]))
     else:
-        n.investment_period_weightings["years"] = [1]
-        n.investment_period_weightings["objective"] = [1]
+        snapshots = pd.date_range(start = f"{years}-01-01 00:00", end = f"{years}-12-31 23:00", freq="H")
+        snapshots = snapshots[~((snapshots.month == 2) & (snapshots.day == 29))]  # exclude Feb 29 for leap years
+        n.set_snapshots(snapshots)
+
+def set_investment_periods(n, years):
+    n.investment_periods = years
+    n.investment_period_weightings["years"] = list(np.diff(years)) + [5]
+    T = 0
+    for period, nyears in n.investment_period_weightings.years.items():
+        discounts = [(1 / (1 + snakemake.config["costs"]["discount_rate"]) ** t) for t in range(T, T + nyears)]
+        n.investment_period_weightings.at[period, "objective"] = sum(discounts)
+        T += nyears
+    n.investment_period_weightings
 
 def add_components_to_network(n, buses, lines, line_config):
     n.import_components_from_dataframe(buses, "Bus")
-    if snakemake.wildcards.regions != '1-supply':
-        lines['type'] = line_config['type'][line_config['v_nom']]
-        lines = lines.rename(columns={line_config['s_rating'] + "_limit": "s_nom_min"})
-        lines = lines.assign(s_nom_extendable=True, type=line_config['type'][line_config['v_nom']])
+    if snakemake.wildcards.regions != "1-supply":
+        lines["type"] = line_config["type"][line_config["v_nom"]]
+        lines = lines.rename(columns={line_config["s_rating"] + "_limit": "s_nom_min"})
+        lines = lines.assign(s_nom_extendable=True, type=line_config["type"][line_config["v_nom"]])
         n.import_components_from_dataframe(lines, "Line")
 
-if __name__ == "__main__":
-    if 'snakemake' not in globals():
-        from _helpers import mock_snakemake
-        snakemake = mock_snakemake(
-            'base_network', 
-            **{
-                'model_file':'grid-2040',
-                'regions':'11-supply',
-            }
-        )
-    line_config = snakemake.config['lines']
-    
-    # Create network and load buses and lines data
-    n = create_network()
-    buses, lines = load_buses_and_lines(n, line_config)
-  
-    # Set snapshots and investment periods
+def get_years():
     years = (
         pd.read_excel(
             snakemake.input.model_file,
@@ -132,14 +118,35 @@ if __name__ == "__main__":
         .loc[snakemake.wildcards.model_file,"simulation_years"]
     )
 
-    if isinstance(years, int):
-        # convert years into a list 
-        years = [years]
+    if not isinstance(years, int):
+        years = list(map(int, re.split(",\s*", years))) 
+        n._multi_invest = 1
     else:
-        years = list(map(int, years.strip('[]').split(',')))
+        n._multi_invest = 0 
+
+    return years
+
+if __name__ == "__main__":
+    if "snakemake" not in globals():
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake(
+            "base_network", 
+            **{
+                "model_file":"grid-expansion",
+                "regions":"11-supply",
+            }
+        )
+    line_config = snakemake.config["lines"]
     
+    # Create network and load buses and lines data
+    n = create_network()
+    buses, lines = load_buses_and_lines(n, line_config)
+  
+    # Set snapshots and investment periods
+    years = get_years()    
     set_snapshots(n,years)
-    set_investment_periods(n,years)
+    if n._multi_invest:
+        set_investment_periods(n,years)
     add_components_to_network(n, buses, lines, line_config)
     
     n.export_to_netcdf(snakemake.output[0])
