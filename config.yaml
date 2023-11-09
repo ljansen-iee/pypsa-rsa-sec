@@ -42,8 +42,9 @@ years:
   reference_weather_years: 
     # reference years used for solar PV and wind profiles - can be single or multiple years
     # if multiple years are specified these are applied sequencially to the simulation years
-    solar_pv: [2012]
-    onwind: [2012]
+    solar_pv: [2017, 2018]
+    wind: [2012, 2013]
+
     # reference years from actual Eskom data published at https://www.eskom.co.za/dataportal/ 
     # can be single or multiple years if multiple years are specified these are applied 
     # sequencially to the simulation years
@@ -55,24 +56,31 @@ years:
 electricity:
   demand_disaggregation: "GVA2016" # used to split the demand across supply regions in absence of Eskom data 
   co2limit: 2.2e+9    # Cumulative CO2 emissions budget for all simulation years combined
-  renewable_carriers: [solar_pv, onwind, solar_csp, biomass, hydro, hydro_import] # defines renewable carriers
-  group_ipp_generators: true # group IPPs by keyword in model_file
+  renewable_generators:
+    carriers: [wind, solar_pv, solar_csp, biomass, hydro, hydro_import] # defines renewable carriers
+    apply_grouping: true # if false indivudal plants are specified as generators
+  #renewable_carriers: [solar_pv, wind, solar_csp, biomass, hydro, hydro_import] # defines renewable carriers
+  #group_ipp_generators: true # group IPPs by keyword in model_file
   conventional_generators: # generator planned and unplanned outages are included based on Eskom data
-    carriers: ["coal", "ocgt-diesel", "ocgt-gas", "ccgt-gas", "nuclear", hydro, hydro_import]
+    carriers: ["coal", "ocgt_diesel", "ocgt_gas", "ccgt_gas", "nuclear", hydro, hydro_import]
+    apply_grouping: true # if false indivudal plants are specified as generators
     implement_availability: true
     fix_ref_years: [2021] #if multiple years specified an average is used
     ext_ref_years: [2017] #if multiple years specified an average is used
     extendable_reference: 
     # New generator availability is based on an existing Eskom generator
       coal: "Lethabo"
-      ocgt-diesel: "Ankerlig"
-      ocgt-gas: "Ankerlig"
-      ccgt-gas: "Ankerlig"
+      ocgt_diesel: "Ankerlig"
+      ocgt_gas: "Ankerlig"
+      ccgt_gas: "Ankerlig"
       nuclear: "Koeberg"
       hydro: "Gariep"
       #hydro_import: "Cahora Bassa"
 
   # Only for new generators, existing generators are specified in model_file
+  # static flag means that the absolute number is specified e.g if 30% is given the 30% min stable level is applied
+  # dynamic flag means that the number is specified as a fraction of the p_max_pu i.e. 30% of what is operational if 
+  # outages are represented by a reduction in p_max_pu
   min_stable_levels:
     coal: [0, static] 
     OCGT: [0, static] 
@@ -84,9 +92,9 @@ electricity:
     CCGT: 0.3 
     nuclear: 0.5
 
+
   extendable_carriers:
-    Renewables: [onwind, solar_pv]
-    Generator: [ccgt-gas, ocgt-diesel, coal, nuclear, hydro_import]
+    Generator: [wind, solar_pv, ccgt_gas, ocgt_diesel] #, coal, nuclear, biomass, hydro]
     StorageUnit: [battery, phs] 
 
   buses:
@@ -116,13 +124,13 @@ electricity:
     diesel: 1
     gas: 1
     biomass: 1
-    onwind: 0.1 #.i.e only 10% of installed wind capacity is counted towards reserve_margin
+    wind: 0.1 #.i.e only 10% of installed wind capacity is counted towards reserve_margin
     phs: 1
     battery: 0.5
 
   operating_reserves:
       spinning: ["battery","phs"]
-      total: ["diesel","gas","ocgt-diesel","ccgt-gas","battery","phs"] 
+      total: ["diesel","gas","ocgt_diesel","ccgt_gas","battery","phs"] 
   max_hours:
     battery: 3
     phs: 20
@@ -142,7 +150,7 @@ respotentials:
       # - [[46, 47, 51, 56, 64, 68, 72], 10]
 
   capacity_per_sqm:
-    onwind: 5   # half of 10 (IWES)
+    wind: 5   # half of 10 (IWES)
     solar_pv: 16.5 # half of 33 (IWES)
 
 atlite:
@@ -172,7 +180,7 @@ atlite:
   apply_wind_correction: true
 
 renewable:
-  onwind:
+  wind:
     cutout: RSA-2017-era5
     resource:
       method: wind
@@ -293,13 +301,16 @@ costs:
     particulate: 11.3e+3
 
 tsam_clustering:
-  normed: true
-  extremePeriodMethod: "None"
-  rescaleClusterPeriods: False
-  hoursPerPeriod: 24
-  clusterMethod: "hierarchical"
   nprocesses: 15
   solver: "cbc" #need to use open source solver here due to parallel processing of years
+
+
+unit_conversion:
+  GJ: 0.277778 #MWh thermal
+  TJ: 277.778 #MWh thermal
+  PJ: 277778 #MWh thermal
+  TWh: 1.e+6 #MWh
+  
 
 solving:
   tmpdir: /tmp
@@ -337,8 +348,8 @@ plotting:
 
   costs_max: 1000
 
-  vre_techs: ["onwind","solar_pv", "hydro", "hydro_import"]
-  conv_techs: ["ocgt-diesel", "ocgt-gas", "ccgt-gas", "nuclear", "coal"]
+  vre_techs: ["wind","solar_pv", "hydro", "hydro_import"]
+  conv_techs: ["ocgt_diesel", "ocgt_gas", "ccgt_gas", "nuclear", "coal"]
   storage_techs: ["hydro", "CAES", "battery", "PHS", "hydro+PHS"]
   store_techs: ["Li ion", "water tanks"]
   load_carriers: ["AC load", "heat load", "Li ion load"]
@@ -349,7 +360,7 @@ plotting:
                "central CHP electric", "central gas boiler"]
   heat_generators: ["gas boiler", "central gas boiler", "solar thermal collector", "central solar thermal collector"]
   tech_colors:
-    "onwind": "#77D1E4"
+    "wind": "#77D1E4"
     "onshore wind": "#77D1E4"
     "offwind": "#77D1E4"
     "offwind-ac": "#77D1E4"
@@ -401,7 +412,7 @@ plotting:
     CCGT: "CCGT" #"Combined-Cycle Gas"
     offwind-ac: "Offshore Wind (AC)"
     offwind-dc: "Offshore Wind (DC)"
-    onwind: "Wind"
+    wind: "Wind"
     solar: "PV"
     phs: "Pumped Hydro Storage"
     hydro: "Hydro"

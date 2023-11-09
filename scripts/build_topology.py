@@ -94,7 +94,7 @@ def build_line_topology(lines, regions):
         lambda point: regions[regions.geometry.contains(point)].index.values[0] 
         if len(regions[regions.geometry.contains(point)].index.values) > 0 else None
     )
-    lines['id']=range(0,len(lines))
+    lines['id']=range(len(lines))
     lines = lines[lines['bus0']!=lines['bus1']]
     lines = lines.dropna(subset=['bus0','bus1'])
     lines.reset_index(drop=True,inplace=True)       
@@ -107,7 +107,7 @@ def calc_inter_region_lines(lines):
     inter_region_lines = inter_region_lines[inter_region_lines['bus0']!=inter_region_lines['bus1']]
     inter_region_lines['bus0'], inter_region_lines['bus1'] = np.sort(inter_region_lines[['bus0', 'bus1']].values, axis=1).T
     inter_region_lines = inter_region_lines.pivot_table(index=["bus0", "bus1"], columns="DESIGN_VOL", values="count", aggfunc='sum',fill_value=0).reset_index()
-    inter_region_lines.columns = [str(int(col)) if not isinstance(col, str) else col for col in inter_region_lines.columns]
+    inter_region_lines.columns = [col if isinstance(col, str) else str(int(col)) for col in inter_region_lines.columns]
 
     limits = lines[['bus0','bus1','thermal_limit','SIL_limit','St_Clair_limit']].groupby(['bus0','bus1']).sum()
     inter_region_lines = inter_region_lines.merge(limits[['thermal_limit','SIL_limit','St_Clair_limit']],on=['bus0','bus1'],how='left')
@@ -136,11 +136,7 @@ def calc_line_limits(length, voltage, line_config):
     if voltage in [220, 275, 400, 765]:
         thermal = line_config['thermal'][voltage]
         SIL = line_config['SIL'][voltage]
-
-        if length <= 80:
-            St_Clair = thermal
-        else:
-            St_Clair = SIL * 53.736 * (length/1000) ** -0.65
+        St_Clair = thermal if length <= 80 else SIL * 53.736 * (length/1000) ** -0.65
     else:
         thermal = np.nan
         SIL = np.nan
@@ -223,7 +219,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             'build_topology', 
             **{
-                'regions':'30-supply',
+                'regions':'11-supply',
             }
         )
     line_config = snakemake.config['lines']
