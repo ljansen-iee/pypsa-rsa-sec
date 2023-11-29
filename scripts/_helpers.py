@@ -733,3 +733,10 @@ def assign_segmented_df_to_network(df, search_str, replace_str, target):
     segmented = df[cols]
     segmented.columns = segmented.columns.str.replace(search_str, replace_str)
     target = segmented
+
+
+def get_start_year(n):
+    return n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
+
+def get_snapshots(n):
+    return n.snapshots.get_level_values(1) if n.multi_invest else n.snapshots

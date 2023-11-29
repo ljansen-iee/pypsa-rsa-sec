@@ -101,7 +101,6 @@ def set_investment_periods(n, years):
         discounts = [(1 / (1 + snakemake.config["costs"]["discount_rate"]) ** t) for t in range(T, T + nyears)]
         n.investment_period_weightings.at[period, "objective"] = sum(discounts)
         T += nyears
-    n.investment_period_weightings
 
 def add_components_to_network(n, buses, lines, line_config):
     n.import_components_from_dataframe(buses, "Bus")
@@ -135,8 +134,8 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "base_network", 
             **{
-                "model_file":"grid-2030-2040",
-                "regions":"30-supply",
+                "model_file":"grid-2040",
+                "regions":"11-supply",
             }
         )
     line_config = snakemake.config["lines"]

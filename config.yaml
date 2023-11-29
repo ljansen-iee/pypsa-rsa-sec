@@ -97,40 +97,29 @@ electricity:
     Generator: [wind, solar_pv, ccgt_gas, ocgt_diesel] #, coal, nuclear, biomass, hydro]
     StorageUnit: [battery, phs] 
 
-  buses:
-    11-supply: 
-      OCGT: [Gauteng, Western Cape, KwaZulu Natal, Eastern Cape] # Saldana Bay, Richards Bay, Coega
-      CCGT: [Gauteng, Western Cape, KwaZulu Natal, Eastern Cape]
-      coal: [Gauteng, Limpopo] # Johannesburg, Waterberg
-      nuclear: [Eastern Cape, Western Cape] # Thyspunt, Koeberg
-      imports: [Limpopo]         
-    27-supply:
-      OCGT: [Johannesburg, West Coast, Empangeni, Port Elizabeth] # Saldana Bay, Richards Bay, Coega
-      CCGT: [Johannesburg, West Coast, Empangeni, Port Elizabeth]
-      coal: [Johannesburg, Waterberg]
-      nuclear: [Port Elizabeth, Peninsula] # Thyspunt, Koeberg
-      imports: [Polokwane]
-    30-supply:
-      OCGT: [Witbank, West Coast, Empangeni, Port Elizabeth] # Saldana Bay, Richards Bay, Coega
-      CCGT: [Witbank, West Coast, Empangeni, Port Elizabeth]
-      coal: [Witbank, Lephalale]
-      nuclear: [Port Elizabeth, Peninsula] # Thyspunt, Koeberg
-      imports: [Polokwane]  
 
-  reserve_margin:
-    coal: 0.8
-    OCGT: 1
-    CCGT: 1
-    diesel: 1
-    gas: 1
-    biomass: 1
-    wind: 0.1 #.i.e only 10% of installed wind capacity is counted towards reserve_margin
-    phs: 1
-    battery: 0.5
+  operational_reserve:
+    activate: false
+    epsilon_load: 0.02
+    epsilon_vres: 0.02
+    contingency: 4000
 
-  operating_reserves:
-      spinning: ["battery","phs"]
-      total: ["diesel","gas","ocgt_diesel","ccgt_gas","battery","phs"] 
+  reserves:
+    capacity_credit:
+      coal: 0.8
+      ocgt-gas: 1
+      ocgt-diesel: 1
+      ccgt-gas: 1
+      biomass: 1
+      wind: 0.1 #.i.e only 10% of installed wind capacity is counted towards reserve_margin
+      phs: 1
+      battery: 0.5
+      nuclear: 1
+
+    operating_reserves:
+        spinning: ["coal", "nuclear", "phs", "biomass", "hydro", "hydro_import"]
+        non_spinning: ["coal", "ocgt_diesel", "ocgt_gas", "ccgt_gas", "phs", "biomass", "hydro", "hydro_import"]
+  
   max_hours:
     battery: 3
     phs: 20

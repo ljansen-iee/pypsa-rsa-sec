@@ -113,6 +113,8 @@ from _helpers import (
     remove_leap_day,
     drop_non_pypsa_attrs,
     normed,
+    get_start_year,
+    get_snapshots,
 )
 
 """
@@ -584,8 +586,8 @@ def attach_existing_generators(n, costs, model_setup, model_file):
     re_carriers = config["renewable_generators"]["carriers"]
     carriers = conv_carriers + re_carriers
         
-    start_year = n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
-    snapshots = n.snapshots.get_level_values(1) if n.multi_invest else n.snapshots
+    start_year = get_start_year(n)
+    snapshots = get_snapshots(n)
     
     # load generators from model file
     gens = load_components_from_model_file(model_file, model_setup, carriers, start_year, snakemake.config["electricity"])
@@ -770,7 +772,7 @@ def set_default_extendable_params(c, bus_carrier_years, **config):
 """
 def attach_existing_storage(n, model_setup, model_file): 
     carriers = ["phs", "battery"]
-    start_year = n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
+    start_year = get_start_year(n)
     
     storage = load_components_from_model_file(model_file, model_setup, carriers, start_year, snakemake.config["electricity"])
     storage = map_components_to_buses(storage, snakemake.input.supply_regions, snakemake.config["crs"])
@@ -821,6 +823,23 @@ def add_nice_carrier_names(n):
         )
     n.carriers["color"] = colors
 
+
+def add_load_shedding(n, cost):
+    n.add("Carrier", "load_shedding")
+    buses_i = n.buses.index
+    n.madd(
+        "Generator",
+        buses_i,
+        "_load_shedding",
+        bus = buses_i,
+        p_nom = 1e6,  # MW
+        carrier = "load_shedding",
+        build_year = get_start_year(n),
+        lifetime = 100,
+        marginal_cost = cost,
+    )
+
+
 """
 ********************************************************************************
         MAIN  
@@ -834,7 +853,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "add_electricity", 
             **{
-                "model_file":"grid-2030-2040",
+                "model_file":"grid-2040",
                 "regions":"11-supply",
                 "resarea":"redz",
             }
@@ -889,6 +908,11 @@ if __name__ == "__main__":
 
     logging.info("Attaching extendable storage")
     attach_extendable_storage(n, costs) 
+
+    if snakemake.config["solving"]["options"]["load_shedding"]:
+        ls_cost = snakemake.config["costs"]["load_shedding"]
+        logging.info("Adding load shedding")
+        add_load_shedding(n, ls_cost) 
 
     add_nice_carrier_names(n)
     n.export_to_netcdf(snakemake.output[0])
