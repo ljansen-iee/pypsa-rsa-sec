@@ -8,45 +8,15 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pypsa.descriptors import (Dict,get_active_assets)
+
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import get_activity_mask, get_active_assets
 
-def sets_path_to_root(root_directory_name):
-    """
-    Search and sets path to the given root directory (root/path/file).
-
-    Parameters
-    ----------
-    root_directory_name : str
-        Name of the root directory.
-    n : int
-        Number of folders the function will check upwards/root directed.
-
-    """
-    import os
-
-    repo_name = root_directory_name
-    n = 8  # check max 8 levels above. Random default.
-    n0 = n
-
-    while n >= 0:
-        n -= 1
-        # if repo_name is current folder name, stop and set path
-        if repo_name == os.path.basename(os.path.abspath(".")):
-            repo_path = os.getcwd()  # os.getcwd() = current_path
-            os.chdir(repo_path)  # change dir_path to repo_path
-            print("This is the repository path: ", repo_path)
-            print("Had to go %d folder(s) up." % (n0 - 1 - n))
-            break
-        # if repo_name NOT current folder name for 5 levels then stop
-        if n == 0:
-            print("Cant find the repo path.")
-        # if repo_name NOT current folder name, go one dir higher
-        else:
-            upper_path = os.path.dirname(os.path.abspath("."))  # name of upper folder
-            os.chdir(upper_path)
-
-
+"""
+List of general helper functions
+- configure_logging ->
+- normed ->
+"""
 def configure_logging(snakemake, skip_handlers=False):
     """
     Configure the basic behaviour for the logging module.
@@ -90,6 +60,105 @@ def configure_logging(snakemake, skip_handlers=False):
         )
     logging.basicConfig(**kwargs)
 
+def normed(s):
+    return s / s.sum()
+
+
+"""
+List of cost related functions
+
+"""
+
+
+def _add_missing_carriers_from_costs(n, costs, carriers):
+    start_year = n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
+    missing_carriers = pd.Index(carriers).difference(n.carriers.index)
+    if missing_carriers.empty: return
+
+    emissions = costs.loc[("co2_emissions",missing_carriers),start_year]
+    emissions.index = emissions.index.droplevel(0)
+    n.madd("Carrier", missing_carriers, co2_emissions=emissions)
+
+"""
+List of IO functions
+    - load_network ->
+    - sets_path_to_root -> 
+    - read_and_filter_generators -> add_electricity.py
+    - read_csv_nafix -> 
+    - to_csv_nafix -> 
+"""
+
+
+def sets_path_to_root(root_directory_name):
+    """
+    Search and sets path to the given root directory (root/path/file).
+
+    Parameters
+    ----------
+    root_directory_name : str
+        Name of the root directory.
+    n : int
+        Number of folders the function will check upwards/root directed.
+
+    """
+    import os
+
+    repo_name = root_directory_name
+    n = 8  # check max 8 levels above. Random default.
+    n0 = n
+
+    while n >= 0:
+        n -= 1
+        # if repo_name is current folder name, stop and set path
+        if repo_name == os.path.basename(os.path.abspath(".")):
+            repo_path = os.getcwd()  # os.getcwd() = current_path
+            os.chdir(repo_path)  # change dir_path to repo_path
+            print("This is the repository path: ", repo_path)
+            print("Had to go %d folder(s) up." % (n0 - 1 - n))
+            break
+        # if repo_name NOT current folder name for 5 levels then stop
+        if n == 0:
+            print("Cant find the repo path.")
+        # if repo_name NOT current folder name, go one dir higher
+        else:
+            upper_path = os.path.dirname(os.path.abspath("."))  # name of upper folder
+            os.chdir(upper_path)
+
+def read_and_filter_generators(file, sheet, index, filter_carriers):
+    df = pd.read_excel(
+        file, 
+        sheet_name=sheet,
+        na_values=["-"],
+        index_col=[0,1]
+    ).loc[index]
+    return df[df["Carrier"].isin(filter_carriers)]
+
+
+def read_csv_nafix(file, **kwargs):
+    "Function to open a csv as pandas file and standardize the na value"
+    if "keep_default_na" in kwargs:
+        del kwargs["keep_default_na"]
+    if "na_values" in kwargs:
+        del kwargs["na_values"]
+
+    return pd.read_csv(file, **kwargs, keep_default_na=False, na_values=NA_VALUES)
+
+
+def to_csv_nafix(df, path, **kwargs):
+    if "na_rep" in kwargs:
+        del kwargs["na_rep"]
+    if not df.empty:
+        return df.to_csv(path, **kwargs, na_rep=NA_VALUES[0])
+    with open(path, "w") as fp:
+        pass
+
+def add_row_multi_index_df(df, add_index, level):
+    if level == 1:
+        idx = pd.MultiIndex.from_product([df.index.get_level_values(0),add_index])
+        add_df = pd.DataFrame(index=idx,columns=df.columns)
+        df = pd.concat([df,add_df]).sort_index()
+        df = df[~df.index.duplicated(keep='first')]
+    return df
 
 def load_network(import_name=None, custom_components=None):
     """
@@ -142,11 +211,10 @@ def load_network(import_name=None, custom_components=None):
         override_component_attrs=override_component_attrs,
     )
 
-def pdbcast(v, h):
+def load_disaggregate(v, h):
     return pd.DataFrame(
         v.values.reshape((-1, 1)) * h.values, index=v.index, columns=h.index
     )
-
 
 def load_network_for_plots(fn, model_file, config, model_setup_costs, combine_hydro_ps=True, ):
     import pypsa
@@ -196,6 +264,11 @@ def update_p_nom_max(n):
     n.generators.p_nom_max = n.generators[["p_nom_min", "p_nom_max"]].max(1)
 
 
+"""
+List of PyPSA network statistics functions
+
+"""
+
 def aggregate_capacity(n):
     capacity=pd.DataFrame(
         np.nan,index=np.append(n.generators.carrier.unique(),n.storage_units.carrier.unique()),
@@ -211,10 +284,8 @@ def aggregate_capacity(n):
     for y in n.investment_periods:
         capacity.loc[carriers,y]=n.storage_units.p_nom_opt[(n.get_active_assets('StorageUnit',y))].groupby(n.storage_units.carrier).sum()
 
-    try:
-        capacity.loc['OCGT',:]+=capacity.loc['gas',:]+capacity.loc['diesel',:]
-    except:
-        capacity.loc['OCGT',:]+=capacity.loc['gas',:]
+    capacity.loc['ocgt',:]=capacity.loc['ocgt_gas',:]+capacity.loc['ocgt_diesel',:]
+
         
     return capacity.interpolate(axis=1)
 
@@ -519,25 +590,6 @@ def mock_snakemake(rulename, **wildcards):
     os.chdir(script_dir)
     return snakemake
 
-def read_csv_nafix(file, **kwargs):
-    "Function to open a csv as pandas file and standardize the na value"
-    if "keep_default_na" in kwargs:
-        del kwargs["keep_default_na"]
-    if "na_values" in kwargs:
-        del kwargs["na_values"]
-
-    return pd.read_csv(file, **kwargs, keep_default_na=False, na_values=NA_VALUES)
-
-
-def to_csv_nafix(df, path, **kwargs):
-    if "na_rep" in kwargs:
-        del kwargs["na_rep"]
-    # if len(df) > 0:
-    if not df.empty:
-        return df.to_csv(path, **kwargs, na_rep=NA_VALUES[0])
-    else:
-        with open(path, "w") as fp:
-            pass
 
 
 def save_to_geojson(df, fn, crs = 'EPSG:4326'):
@@ -562,49 +614,75 @@ def read_geojson(fn):
         # else return an empty GeoDataFrame
         return gpd.GeoDataFrame(geometry=[])
 
-def pdbcast(v, h):
-    return pd.DataFrame(v.values.reshape((-1, 1)) * h.values,
-                        index=v.index, columns=h.index)
 
-def map_generator_parameters(gens,first_year):
+def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
+    costs_yr = costs.columns.drop('unit')
+    costs.loc[costs.unit.str.contains("/kW")==True, costs_yr ] *= 1e3
+    costs.loc[costs.unit.str.contains("USD")==True, costs_yr ] *= USD_ZAR
+    costs.loc[costs.unit.str.contains("EUR")==True, costs_yr ] *= EUR_ZAR
+
+    costs.loc[costs.unit.str.contains('/kW')==True, 'unit'] = costs.loc[costs.unit.str.contains('/kW')==True, 'unit'].str.replace('/kW', '/MW')
+    costs.loc[costs.unit.str.contains('USD')==True, 'unit'] = costs.loc[costs.unit.str.contains('USD')==True, 'unit'].str.replace('USD', 'ZAR')
+    costs.loc[costs.unit.str.contains('EUR')==True, 'unit'] = costs.loc[costs.unit.str.contains('EUR')==True, 'unit'].str.replace('EUR', 'ZAR')
+
+    # Convert fuel cost from R/GJ to R/MWh
+    costs.loc[costs.unit.str.contains("R/GJ")==True, costs_yr ] *= 3.6 
+    costs.loc[costs.unit.str.contains("R/GJ")==True, 'unit'] = 'R/MWhe' 
+    return costs
+
+def map_component_parameters(gens, first_year):
     ps_f = dict(
-        PHS_efficiency="Pump Efficiency (%)",
-        PHS_units="Pump Units",
-        PHS_load="Pump Load per unit (MW)",
-        PHS_max_hours="Pumped Storage - Max Storage (GWh)"
+        PHS_efficiency="PHS Efficiency (%)",
+        PHS_units="PHS Units",
+        PHS_load="PHS Load per unit (MW)",
+        PHS_max_hours="PHS - Max Storage (GWh)"
     )
     csp_f = dict(CSP_max_hours='CSP Storage (hours)')
     g_f = dict(
-        fom="Fixed O&M Cost (R/kW/yr)",
-        p_nom='Capacity (MW)',
-        name='Power Station Name',
-        carrier='Carrier',
-        build_year='Future Commissioning Date',
-        decom_date='Decommissioning Date',
-        x='GPS Longitude',
-        y='GPS Latitude',
-        status='Status',
-        heat_rate='Heat Rate (GJ/MWh)',
-        fuel_price='Fuel Price (R/GJ)',
-        vom='Variable O&M Cost (R/MWh)',
-        max_ramp_up='Max Ramp Up (MW/min)',
-        max_ramp_down='Max Ramp Down (MW/min)',
-        min_stable='Min Stable Level (%)',
-        unit_size='Unit size (MW)',
-        units='Number units',
-        maint_rate='Typical annual maintenance rate (%)',
-        out_rate='Typical annual forced outage rate (%)',
+        fom = "Fixed O&M Cost (R/kW/yr)",
+        p_nom = 'Capacity (MW)',
+        name ='Power Station Name',
+        carrier = 'Carrier',
+        build_year = 'Commissioning Date',
+        decom_date = 'Decommissioning Date',
+        x = 'GPS Longitude',
+        y = 'GPS Latitude',
+        status = 'Status',
+        heat_rate = 'Heat Rate (GJ/MWh)',
+        fuel_price = 'Fuel Price (R/GJ)',
+        vom = 'Variable O&M Cost (R/MWh)',
+        max_ramp_up = 'Max Ramp Up (MW/min)',
+        max_ramp_down = 'Max Ramp Down (MW/min)',
+        max_ramp_start_up = 'Max Ramp Start Up (MW/min)',
+        max_ramp_shut_down = 'Max Ramp Shut Down (MW/min)',
+        start_up_cost = 'Start Up Cost (R)',
+        shut_down_cost = 'Shut Down Cost (R)',
+        p_min_pu = 'Min Stable Level (%)',
+        min_up_time = 'Min Up Time (h)',
+        min_down_time = 'Min Down Time (h)',
+        unit_size = 'Unit size (MW)',
+        units = 'Number units',
+        maint_rate = 'Typical annual maintenance rate (%)',
+        out_rate = 'Typical annual forced outage rate (%)',
     )
 
     # Calculate fields where pypsa uses different conventions
     gens['efficiency'] = (3.6/gens.pop(g_f['heat_rate'])).fillna(1)
     gens['marginal_cost'] = (3.6*gens.pop(g_f['fuel_price'])/gens['efficiency']).fillna(0) + gens.pop(g_f['vom'])
     gens['capital_cost'] = 1e3*gens.pop(g_f['fom'])
-    gens['ramp_limit_up'] = 60*gens.pop(g_f['max_ramp_up'])/gens[g_f['p_nom']]
-    gens['ramp_limit_down'] = 60*gens.pop(g_f['max_ramp_down'])/gens[g_f['p_nom']]    
+    gens['ramp_limit_up'] = 60*gens.pop(g_f['max_ramp_up'])/gens[g_f['unit_size']]
+    gens['ramp_limit_down'] = 60*gens.pop(g_f['max_ramp_down'])/gens[g_f['unit_size']]    
+    
+    # unit commitment parameters
+    gens['ramp_limit_start_up'] = 60*gens.pop(g_f['max_ramp_start_up'])/gens[g_f['unit_size']]
+    gens['ramp_limit_shut_down'] = 60*gens.pop(g_f['max_ramp_shut_down'])/gens[g_f['unit_size']]    
+    gens['start_up_cost'] = gens.pop(g_f['start_up_cost']).fillna(0)
+    gens['shut_down_cost'] = gens.pop(g_f['shut_down_cost']).fillna(0)
+    gens['min_up_time'] = gens.pop(g_f['min_up_time']).fillna(0)
+    gens['min_down_time'] = gens.pop(g_f['min_down_time']).fillna(0)
 
     gens = gens.rename(
-        columns={g_f[f]: f for f in {'p_nom', 'name', 'carrier', 'x', 'y','build_year','decom_date','min_stable'}})
+        columns={g_f[f]: f for f in {'p_nom', 'name', 'carrier', 'x', 'y','build_year','decom_date','p_min_pu'}})
     gens = gens.rename(columns={ps_f[f]: f for f in {'PHS_efficiency','PHS_max_hours'}})    
     gens = gens.rename(columns={csp_f[f]: f for f in {'CSP_max_hours'}})     
 
@@ -642,3 +720,99 @@ def save_to_geojson(df, fn):
         # create empty file to avoid issues with snakemake
         with open(fn, "w") as fp:
             pass
+
+def drop_non_pypsa_attrs(n, c, df):
+    df = df.loc[:, df.columns.isin(n.components[c]["attrs"].index)]
+    return df
+
+def normalize_and_rename_df(df, snapshots, fillna, suffix=None):
+    df = df.loc[snapshots]
+    df = (df / df.max()).fillna(fillna)
+    if suffix:
+        df.columns += f'_{suffix}'
+    return df, df.max()
+
+def normalize_and_rename_df(df, snapshots, fillna, suffix=None):
+    df = df.loc[snapshots]
+    df = (df / df.max()).fillna(fillna)
+    if suffix:
+        df.columns += f'_{suffix}'
+    return df, df.max()
+
+def assign_segmented_df_to_network(df, search_str, replace_str, target):
+    cols = df.columns[df.columns.str.contains(search_str)]
+    segmented = df[cols]
+    segmented.columns = segmented.columns.str.replace(search_str, replace_str)
+    target = segmented
+
+
+def get_start_year(sns, multi_invest):
+    return sns.get_level_values(0)[0] if multi_invest else sns[0].year
+
+def get_snapshots(sns, multi_invest):
+    return sns.get_level_values(1) if multi_invest else sns
+
+def get_investment_periods(sns, multi_invest):
+    return sns.get_level_values(0).unique().to_list() if multi_invest else [sns[0].year]
+
+def adjust_by_p_max_pu(n, config):
+    for carrier in config.keys():
+        gen_list = n.generators[n.generators.carrier == carrier].index
+        for p in config[carrier]:#["p_min_pu", "ramp_limit_up", "ramp_limit_down"]:
+            n.generators_t[p][gen_list] = (
+                get_as_dense(n, "Generator", p)[gen_list] * get_as_dense(n, "Generator", "p_max_pu")[gen_list]
+            )
+
+def initial_ramp_rate_fix(n):
+    ramp_up_dense = get_as_dense(n, "Generator", "ramp_limit_up")
+    ramp_down_dense = get_as_dense(n, "Generator", "ramp_limit_down")
+    p_min_pu_dense = get_as_dense(n, "Generator", "p_min_pu")
+
+    limit_up = ~ramp_up_dense.isnull().all()
+    limit_down = ~ramp_down_dense.isnull().all()
+    
+    for y, y_prev in zip(n.investment_periods[1:], n.investment_periods[:-1]):
+        first_sns = (y, f"{y}-01-01 00:00:00")
+        new_build = n.generators.query("build_year <= @y & build_year > @y_prev").index
+
+        gens_up = new_build[limit_up[new_build]]
+        n.generators_t.ramp_limit_up[gens_up] = ramp_up_dense[gens_up]
+        n.generators_t.ramp_limit_up.loc[first_sns, gens_up] = np.maximum(p_min_pu_dense.loc[first_sns, gens_up], ramp_up_dense.loc[first_sns, gens_up])
+        
+        gens_down = new_build[limit_down[new_build]]
+        n.generators_t.ramp_limit_down[gens_down] = ramp_down_dense[gens_down]
+        n.generators_t.ramp_limit_down.loc[first_sns, gens_down] = np.maximum(p_min_pu_dense.loc[first_sns, gens_up], ramp_up_dense.loc[first_sns, gens_up])
+
+
+def apply_default_attr(df, attrs):
+    params = [
+        "bus", 
+        "carrier", 
+        "lifetime", 
+        "p_nom", 
+        "efficiency", 
+        "ramp_limit_up", 
+        "ramp_limit_down", 
+        "marginal_cost", 
+        "capital_cost"
+    ]
+    uc_params = [
+        "ramp_limit_start_up",
+        "ramp_limit_shut_down", 
+        "start_up_cost", 
+        "shut_down_cost", 
+        "min_up_time", 
+        "min_down_time",
+        #"p_min_pu",
+    ]
+    params += uc_params
+    
+    default_attrs = attrs[["default","type"]]
+    default_list = default_attrs.loc[default_attrs.index.isin(params), "default"].dropna().index
+
+    conv_type = {'int': int, 'float': float, "static or series": float, "series": float}
+    for attr in default_list:
+        default = default_attrs.loc[attr, "default"]
+        df[attr] = df[attr].fillna(conv_type[default_attrs.loc[attr, "type"]](default))
+    
+    return df
