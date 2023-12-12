@@ -4,7 +4,6 @@
 # coding: utf-8
 
 """
-
 Adds fixed and extendable components to the base network. The primary functions run inside main are:
 
     attach_load
@@ -99,7 +98,6 @@ import numpy as np
 import pandas as pd
 import pypsa
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense, get_activity_mask
-
 from pypsa.io import import_components_from_dataframe
 from shapely.geometry import Point
 import warnings
@@ -121,7 +119,6 @@ from _helpers import (
     adjust_by_p_max_pu,
     apply_default_attr,
     initial_ramp_rate_fix,
-
 )
 
 """
@@ -146,11 +143,11 @@ def annualise_costs(investment, lifetime, discount_rate, FOM):
     CRF = discount_rate / (1 - 1 / (1 + discount_rate) ** lifetime)
     return (investment * CRF + FOM).fillna(0)
 
-
 def load_extendable_parameters(n, model_file, model_setup, snakemake):
     """
     set all asset costs tab in the model file
     """
+
     param = pd.read_excel(
         model_file, 
         sheet_name = "extendable_parameters",
@@ -324,9 +321,6 @@ def init_pu_profiles(gens, snapshots):
     return pu_profiles
 
 
-    eaf_hrly = pd.DataFrame(1, index = snapshots, columns = eaf_mnthly.columns)
-    eaf_hrly = eaf_mnthly.loc[eaf_hrly.index.month].reset_index(drop=True).set_index(eaf_hrly.index) 
-
 def extend_reference_data(n, ref_data, snapshots):
     ext_years = snapshots.year.unique()
     if len(ref_data.shape) > 1:
@@ -407,7 +401,6 @@ def proj_eaf_override(eaf_hrly, projections, snapshots, include = "_EAF", exclud
     proj_eaf = projections.loc[(projections.index.str.contains(include) & ~projections.index.str.contains(exclude)), snapshots.year.unique()]
     proj_eaf.index = proj_eaf.index.str.replace(include,"")
 
-
     # remove decom_stations
     proj_eaf = proj_eaf[proj_eaf.index.isin(eaf_yrly.columns)]
     scaling = proj_eaf.T.div(eaf_yrly[proj_eaf.index], axis="columns", level="year").fillna(1)
@@ -435,7 +428,6 @@ def generate_eskom_re_profiles(n):
     enable:
         use_eskom_wind_solar
     """
-
     ext_years = get_investment_periods(n.snapshots, n.multi_invest)
     carriers = snakemake.config["electricity"]["renewable_generators"]["carriers"]
     ref_years = snakemake.config["years"]["reference_weather_years"]
@@ -464,7 +456,6 @@ def generate_eskom_re_profiles(n):
             eskom_profiles.loc[y, carrier] = (eskom_data.loc[str(weather_years[cnt]), carrier]
                                             .clip(lower=0., upper=1.)).values
     return eskom_profiles
-
 def generate_fixed_wind_solar_profiles_from_excel(n, gens, ref_data, snapshots, pu_profiles):
     """
     Generates fixed wind and solar PV profiles for the network based on timeseries data supplied in Excel format.
@@ -488,7 +479,6 @@ def generate_fixed_wind_solar_profiles_from_excel(n, gens, ref_data, snapshots, 
         fixed_solar_pv_pu: Existing solar PV profiles
         {regions}_wind_pu: Extendable wind profiles
         {regions}_solar_pv_pu: Extendable solar PV profiles
-
 
     """
 
@@ -878,7 +868,6 @@ def attach_fixed_storage(n):
     storage = load_components_from_model_file(carriers, start_year, snakemake.config["electricity"])
     storage = map_components_to_buses(storage, snakemake.input.supply_regions, snakemake.config["crs"])
 
-
     max_hours_col = [col for col in storage.columns if "_max_hours" in col]
     efficiency_col = [col for col in storage.columns if "_efficiency" in col]
 
@@ -992,7 +981,8 @@ def convert_lines_to_links(n):
 #         else:
 #             logging.warning(f"Removing committable flag from generator {com_i[_]} and defaulting to extendable.")
 #             n.generators.loc[com_i[_], "committable"] = False
-
+            
+        
 def add_nice_carrier_names(n):
 
     carrier_i = n.carriers.index
@@ -1042,7 +1032,6 @@ if __name__ == "__main__":
             **{
                 "model_file":"val-LC-UNC",
                 "regions":"1-supply",
-
                 "resarea":"redz",
             }
         )
@@ -1105,7 +1094,7 @@ if __name__ == "__main__":
         ls_cost = snakemake.config["costs"]["load_shedding"]
         logging.info("Adding load shedding")
         add_load_shedding(n, ls_cost) 
-        
+
     _add_missing_carriers_from_costs(n, param, n.generators.carrier.unique())
     _add_missing_carriers_from_costs(n, param, n.storage_units.carrier.unique())
 
