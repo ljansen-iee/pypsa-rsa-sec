@@ -65,6 +65,7 @@ import re
 def create_network():
     n = pypsa.Network()
     n.name = "PyPSA-ZA"
+
     return n
 
 def load_buses_and_lines(n, line_config):

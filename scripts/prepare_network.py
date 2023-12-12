@@ -95,7 +95,6 @@ def set_extendable_limits_global(n, model_file, model_setup):
     for lim, global_limit in global_limits.items():
         global_limit.index = global_limit.index.droplevel([0, 1, 2, 3])
         global_limit = global_limit.loc[~(global_limit == ignore[lim]).all(axis=1)]
-
         constraints = [
             {
                 "name": f"global_{lim}-{carrier}-{y}",
@@ -103,6 +102,7 @@ def set_extendable_limits_global(n, model_file, model_setup):
                 "sense": sense[lim],
                 "investment_period": y,
                 "type": "tech_capacity_expansion_limit",
+
                 "constant": global_limit.loc[carrier, y],
             }
             for carrier in global_limit.index
@@ -156,6 +156,7 @@ def add_emission_prices(n, emission_prices=None, exclude_co2=False):
     ep = (pd.Series(emission_prices).rename(lambda x: x+"_emissions") * n.carriers).sum(axis=1)
     n.generators["marginal_cost"] += n.generators.carrier.map(ep)
     n.storage_units["marginal_cost"] += n.storage_units.carrier.map(ep)
+
 
 def add_co2limit(n):
     n.add("GlobalConstraint", "CO2Limit",
@@ -291,10 +292,10 @@ def single_year_segmentation(n, snapshots, segments, config):
 
     raw = pd.concat([p_max_pu, load, inflow], axis=1, sort=False)
 
+
     if isinstance(raw.index, pd.MultiIndex):
         multi_index = True
         raw.index = raw.index.droplevel(0)
-    
     y = snapshots.get_level_values(0)[0] if multi_index else snapshots[0].year
 
     agg = tsam.TimeSeriesAggregation(
@@ -316,6 +317,7 @@ def single_year_segmentation(n, snapshots, segments, config):
     offsets = np.insert(cumsum, 0, 0)
     start_snapshot = snapshots[0]
     snapshots = pd.DatetimeIndex([start_snapshot[1] + pd.Timedelta(hours=offset) for offset in offsets])
+
     snapshots = pd.MultiIndex.from_arrays([snapshots.year, snapshots]) if multi_index else snapshots
     weightings = pd.Series(weightings, index=snapshots, name="weightings", dtype="float64")
     segmented_df.index = snapshots
@@ -442,13 +444,11 @@ if __name__ == "__main__":
                 'regions':'11-supply',
                 'resarea':'redz',
                 'll':'copt',
-                'opts':'LC-3000SEG'
+                'opts':'LC'
             }
         )
     #configure_logging(snakemake)
     n = pypsa.Network(snakemake.input[0])
-
-
     model_file = pd.ExcelFile(snakemake.input.model_file)
     model_setup = (
         pd.read_excel(
@@ -457,6 +457,7 @@ if __name__ == "__main__":
             index_col=[0])
             .loc[snakemake.wildcards.model_file]
     )
+
 
     opts = snakemake.wildcards.opts.split("-")
     for o in opts:

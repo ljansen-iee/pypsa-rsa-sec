@@ -155,6 +155,7 @@ def define_reserve_margin(n, model_setup, model_file, snakemake):
 
     peak = n.loads_t.p_set.sum(axis=1).groupby(n.snapshots.get_level_values(0)).max() if n.multi_invest else n.loads_t.p_set.sum(axis=1).max()
     peak = peak if n.multi_invest else pd.Series(peak, index = n.snapshots.year.unique())
+
     capacity_credit = snakemake.config["electricity"]["reserves"]["capacity_credit"]
 
     for y in peak.index:
@@ -185,6 +186,7 @@ def define_reserve_margin(n, model_setup, model_file, snakemake):
             rhs = peak.loc[y]*(1+res_mrgn[y]) - fix_cap 
 
             n.model.add_constraints(lhs, ">=", rhs, name = f"reserve_margin_{y}")    
+
 
 
 
@@ -263,10 +265,7 @@ if __name__ == "__main__":
     define_reserve_margin(n, model_setup, model_file, snakemake)
 
     n.optimize.solve_model(solver_name="xpress",solver_options={"lpflags":4,"crossover":0})
-    x=1
-    # This is a windows test
-    # This is ubuntu test
-    # This is windows test 2
+
 #     # for y in n.investment_periods:
 #     #     if reserve_requirements.loc[(model_setup['projected_parameters'],'reserve_margin_active'),y]:    
 #     #         active = (

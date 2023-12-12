@@ -4,8 +4,8 @@ import pypsa
 
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense, expand_series, get_activity_mask
 from pypsa.optimization.common import reindex
-
 from _helpers import get_investment_periods
+
 # from add_electricity import load_costs, update_transmission_costs
 
 import xarray as xr
@@ -62,6 +62,7 @@ def apply_operational_constraints(n, sns, **kwargs):
             "Applying weekly operational limits and time segmentation should be used with caution as the snapshot weightings might not align with the weekly grouping."
         )
     incl_pu = kwargs["incl_pu"]
+
     limit = kwargs["limit"]
 
     sense = "<=" if limit == "max" else ">="
@@ -74,9 +75,11 @@ def apply_operational_constraints(n, sns, **kwargs):
 
     years = get_investment_periods(sns, n.multi_invest)
 
+
     filtered_gens = n.generators.query("carrier in @carrier") if len(carrier)>1 else n.generators.query("carrier == @carrier")
     if bus != "global":
         filtered_gens = filtered_gens.query("bus == @bus")
+
     fix_i = filtered_gens.query("not p_nom_extendable").index if apply_to in ["fixed", "all"] else []
     ext_i = filtered_gens.query("p_nom_extendable").index if apply_to in ["extendable", "all"] else []
     filtered_gens = filtered_gens.loc[list(fix_i) + list(ext_i)]
@@ -147,7 +150,6 @@ def apply_operational_constraints(n, sns, **kwargs):
         n.model.add_constraints(lhs, sense, rhs, name = f'{limit}-{kwargs["carrier"]}-hour-{kwargs["apply_to"][:3]}')
 
 def set_operational_limits(n, sns, model_file, model_setup):
-
     op_limits = pd.read_excel(
         model_file,
         sheet_name='operational_limits',
@@ -157,6 +159,7 @@ def set_operational_limits(n, sns, model_file, model_setup):
     if model_setup["operational_limits"] not in op_limits.index.get_level_values(0).unique():
         return
     op_limits = op_limits.loc[model_setup["operational_limits"]]
+
 
     #drop rows where all NaN
     op_limits = op_limits.loc[~(op_limits.isna().all(axis=1))]
