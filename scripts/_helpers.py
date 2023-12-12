@@ -11,42 +11,11 @@ import pandas as pd
 from pypsa.descriptors import (Dict,get_active_assets)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
-def sets_path_to_root(root_directory_name):
-    """
-    Search and sets path to the given root directory (root/path/file).
-
-    Parameters
-    ----------
-    root_directory_name : str
-        Name of the root directory.
-    n : int
-        Number of folders the function will check upwards/root directed.
-
-    """
-    import os
-
-    repo_name = root_directory_name
-    n = 8  # check max 8 levels above. Random default.
-    n0 = n
-
-    while n >= 0:
-        n -= 1
-        # if repo_name is current folder name, stop and set path
-        if repo_name == os.path.basename(os.path.abspath(".")):
-            repo_path = os.getcwd()  # os.getcwd() = current_path
-            os.chdir(repo_path)  # change dir_path to repo_path
-            print("This is the repository path: ", repo_path)
-            print("Had to go %d folder(s) up." % (n0 - 1 - n))
-            break
-        # if repo_name NOT current folder name for 5 levels then stop
-        if n == 0:
-            print("Cant find the repo path.")
-        # if repo_name NOT current folder name, go one dir higher
-        else:
-            upper_path = os.path.dirname(os.path.abspath("."))  # name of upper folder
-            os.chdir(upper_path)
-
-
+"""
+List of general helper functions
+- configure_logging ->
+- normed ->
+"""
 def configure_logging(snakemake, skip_handlers=False):
     """
     Configure the basic behaviour for the logging module.
@@ -90,6 +59,105 @@ def configure_logging(snakemake, skip_handlers=False):
         )
     logging.basicConfig(**kwargs)
 
+def normed(s):
+    return s / s.sum()
+
+
+"""
+List of cost related functions
+
+"""
+
+
+def _add_missing_carriers_from_costs(n, costs, carriers):
+    start_year = n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
+    missing_carriers = pd.Index(carriers).difference(n.carriers.index)
+    if missing_carriers.empty: return
+
+    emissions = costs.loc[("co2_emissions",missing_carriers),start_year]
+    emissions.index = emissions.index.droplevel(0)
+    n.madd("Carrier", missing_carriers, co2_emissions=emissions)
+
+"""
+List of IO functions
+    - load_network ->
+    - sets_path_to_root -> 
+    - read_and_filter_generators -> add_electricity.py
+    - read_csv_nafix -> 
+    - to_csv_nafix -> 
+"""
+
+
+def sets_path_to_root(root_directory_name):
+    """
+    Search and sets path to the given root directory (root/path/file).
+
+    Parameters
+    ----------
+    root_directory_name : str
+        Name of the root directory.
+    n : int
+        Number of folders the function will check upwards/root directed.
+
+    """
+    import os
+
+    repo_name = root_directory_name
+    n = 8  # check max 8 levels above. Random default.
+    n0 = n
+
+    while n >= 0:
+        n -= 1
+        # if repo_name is current folder name, stop and set path
+        if repo_name == os.path.basename(os.path.abspath(".")):
+            repo_path = os.getcwd()  # os.getcwd() = current_path
+            os.chdir(repo_path)  # change dir_path to repo_path
+            print("This is the repository path: ", repo_path)
+            print("Had to go %d folder(s) up." % (n0 - 1 - n))
+            break
+        # if repo_name NOT current folder name for 5 levels then stop
+        if n == 0:
+            print("Cant find the repo path.")
+        # if repo_name NOT current folder name, go one dir higher
+        else:
+            upper_path = os.path.dirname(os.path.abspath("."))  # name of upper folder
+            os.chdir(upper_path)
+
+def read_and_filter_generators(file, sheet, index, filter_carriers):
+    df = pd.read_excel(
+        file, 
+        sheet_name=sheet,
+        na_values=["-"],
+        index_col=[0,1]
+    ).loc[index]
+    return df[df["Carrier"].isin(filter_carriers)]
+
+
+def read_csv_nafix(file, **kwargs):
+    "Function to open a csv as pandas file and standardize the na value"
+    if "keep_default_na" in kwargs:
+        del kwargs["keep_default_na"]
+    if "na_values" in kwargs:
+        del kwargs["na_values"]
+
+    return pd.read_csv(file, **kwargs, keep_default_na=False, na_values=NA_VALUES)
+
+
+def to_csv_nafix(df, path, **kwargs):
+    if "na_rep" in kwargs:
+        del kwargs["na_rep"]
+    if not df.empty:
+        return df.to_csv(path, **kwargs, na_rep=NA_VALUES[0])
+    with open(path, "w") as fp:
+        pass
+
+def add_row_multi_index_df(df, add_index, level):
+    if level == 1:
+        idx = pd.MultiIndex.from_product([df.index.get_level_values(0),add_index])
+        add_df = pd.DataFrame(index=idx,columns=df.columns)
+        df = pd.concat([df,add_df]).sort_index()
+        df = df[~df.index.duplicated(keep='first')]
+    return df
 
 def load_network(import_name=None, custom_components=None):
     """
@@ -142,11 +210,10 @@ def load_network(import_name=None, custom_components=None):
         override_component_attrs=override_component_attrs,
     )
 
-def pdbcast(v, h):
+def load_disaggregate(v, h):
     return pd.DataFrame(
         v.values.reshape((-1, 1)) * h.values, index=v.index, columns=h.index
     )
-
 
 def load_network_for_plots(fn, model_file, config, model_setup_costs, combine_hydro_ps=True, ):
     import pypsa
@@ -195,6 +262,11 @@ def update_p_nom_max(n):
 
     n.generators.p_nom_max = n.generators[["p_nom_min", "p_nom_max"]].max(1)
 
+
+"""
+List of PyPSA network statistics functions
+
+"""
 
 def aggregate_capacity(n):
     capacity=pd.DataFrame(
@@ -519,25 +591,6 @@ def mock_snakemake(rulename, **wildcards):
     os.chdir(script_dir)
     return snakemake
 
-def read_csv_nafix(file, **kwargs):
-    "Function to open a csv as pandas file and standardize the na value"
-    if "keep_default_na" in kwargs:
-        del kwargs["keep_default_na"]
-    if "na_values" in kwargs:
-        del kwargs["na_values"]
-
-    return pd.read_csv(file, **kwargs, keep_default_na=False, na_values=NA_VALUES)
-
-
-def to_csv_nafix(df, path, **kwargs):
-    if "na_rep" in kwargs:
-        del kwargs["na_rep"]
-    # if len(df) > 0:
-    if not df.empty:
-        return df.to_csv(path, **kwargs, na_rep=NA_VALUES[0])
-    else:
-        with open(path, "w") as fp:
-            pass
 
 
 def save_to_geojson(df, fn, crs = 'EPSG:4326'):
@@ -562,16 +615,30 @@ def read_geojson(fn):
         # else return an empty GeoDataFrame
         return gpd.GeoDataFrame(geometry=[])
 
-def pdbcast(v, h):
-    return pd.DataFrame(v.values.reshape((-1, 1)) * h.values,
-                        index=v.index, columns=h.index)
 
-def map_generator_parameters(gens,first_year):
+
+
+def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
+    costs_yr = costs.columns.drop('unit')
+    costs.loc[costs.unit.str.contains("/kW")==True, costs_yr ] *= 1e3
+    costs.loc[costs.unit.str.contains("USD")==True, costs_yr ] *= USD_ZAR
+    costs.loc[costs.unit.str.contains("EUR")==True, costs_yr ] *= EUR_ZAR
+
+    costs.loc[costs.unit.str.contains('/kW')==True, 'unit'] = costs.loc[costs.unit.str.contains('/kW')==True, 'unit'].str.replace('/kW', '/MW')
+    costs.loc[costs.unit.str.contains('USD')==True, 'unit'] = costs.loc[costs.unit.str.contains('USD')==True, 'unit'].str.replace('USD', 'ZAR')
+    costs.loc[costs.unit.str.contains('EUR')==True, 'unit'] = costs.loc[costs.unit.str.contains('EUR')==True, 'unit'].str.replace('EUR', 'ZAR')
+
+    # Convert fuel cost from R/GJ to R/MWh
+    costs.loc[costs.unit.str.contains("R/GJ")==True, costs_yr ] *= 3.6 
+    costs.loc[costs.unit.str.contains("R/GJ")==True, 'unit'] = 'R/MWhe' 
+    return costs
+
+def map_component_parameters(gens,first_year):
     ps_f = dict(
-        PHS_efficiency="Pump Efficiency (%)",
-        PHS_units="Pump Units",
-        PHS_load="Pump Load per unit (MW)",
-        PHS_max_hours="Pumped Storage - Max Storage (GWh)"
+        PHS_efficiency="PHS Efficiency (%)",
+        PHS_units="PHS Units",
+        PHS_load="PHS Load per unit (MW)",
+        PHS_max_hours="PHS - Max Storage (GWh)"
     )
     csp_f = dict(CSP_max_hours='CSP Storage (hours)')
     g_f = dict(
@@ -579,7 +646,7 @@ def map_generator_parameters(gens,first_year):
         p_nom='Capacity (MW)',
         name='Power Station Name',
         carrier='Carrier',
-        build_year='Future Commissioning Date',
+        build_year='Commissioning Date',
         decom_date='Decommissioning Date',
         x='GPS Longitude',
         y='GPS Latitude',
@@ -642,3 +709,34 @@ def save_to_geojson(df, fn):
         # create empty file to avoid issues with snakemake
         with open(fn, "w") as fp:
             pass
+
+def drop_non_pypsa_attrs(n, c, df):
+    df = df.loc[:, df.columns.isin(n.components[c]["attrs"].index)]
+    return df
+
+def normalize_and_rename_df(df, snapshots, fillna, suffix=None):
+    df = df.loc[snapshots]
+    df = (df / df.max()).fillna(fillna)
+    if suffix:
+        df.columns += f'_{suffix}'
+    return df, df.max()
+
+def normalize_and_rename_df(df, snapshots, fillna, suffix=None):
+    df = df.loc[snapshots]
+    df = (df / df.max()).fillna(fillna)
+    if suffix:
+        df.columns += f'_{suffix}'
+    return df, df.max()
+
+def assign_segmented_df_to_network(df, search_str, replace_str, target):
+    cols = df.columns[df.columns.str.contains(search_str)]
+    segmented = df[cols]
+    segmented.columns = segmented.columns.str.replace(search_str, replace_str)
+    target = segmented
+
+
+def get_start_year(n):
+    return n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
+
+def get_snapshots(n):
+    return n.snapshots.get_level_values(1) if n.multi_invest else n.snapshots
