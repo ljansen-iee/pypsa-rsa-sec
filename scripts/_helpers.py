@@ -8,8 +8,9 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pypsa.descriptors import (Dict,get_active_assets)
+
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import get_activity_mask, get_active_assets
 
 """
 List of general helper functions
@@ -283,10 +284,8 @@ def aggregate_capacity(n):
     for y in n.investment_periods:
         capacity.loc[carriers,y]=n.storage_units.p_nom_opt[(n.get_active_assets('StorageUnit',y))].groupby(n.storage_units.carrier).sum()
 
-    try:
-        capacity.loc['OCGT',:]+=capacity.loc['gas',:]+capacity.loc['diesel',:]
-    except:
-        capacity.loc['OCGT',:]+=capacity.loc['gas',:]
+    capacity.loc['ocgt',:]=capacity.loc['ocgt_gas',:]+capacity.loc['ocgt_diesel',:]
+
         
     return capacity.interpolate(axis=1)
 
@@ -615,9 +614,6 @@ def read_geojson(fn):
         # else return an empty GeoDataFrame
         return gpd.GeoDataFrame(geometry=[])
 
-
-
-
 def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
     costs_yr = costs.columns.drop('unit')
     costs.loc[costs.unit.str.contains("/kW")==True, costs_yr ] *= 1e3
@@ -633,7 +629,8 @@ def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
     costs.loc[costs.unit.str.contains("R/GJ")==True, 'unit'] = 'R/MWhe' 
     return costs
 
-def map_component_parameters(gens,first_year):
+
+def map_component_parameters(gens, first_year):
     ps_f = dict(
         PHS_efficiency="PHS Efficiency (%)",
         PHS_units="PHS Units",
@@ -642,36 +639,50 @@ def map_component_parameters(gens,first_year):
     )
     csp_f = dict(CSP_max_hours='CSP Storage (hours)')
     g_f = dict(
-        fom="Fixed O&M Cost (R/kW/yr)",
-        p_nom='Capacity (MW)',
-        name='Power Station Name',
-        carrier='Carrier',
-        build_year='Commissioning Date',
-        decom_date='Decommissioning Date',
-        x='GPS Longitude',
-        y='GPS Latitude',
-        status='Status',
-        heat_rate='Heat Rate (GJ/MWh)',
-        fuel_price='Fuel Price (R/GJ)',
-        vom='Variable O&M Cost (R/MWh)',
-        max_ramp_up='Max Ramp Up (MW/min)',
-        max_ramp_down='Max Ramp Down (MW/min)',
-        min_stable='Min Stable Level (%)',
-        unit_size='Unit size (MW)',
-        units='Number units',
-        maint_rate='Typical annual maintenance rate (%)',
-        out_rate='Typical annual forced outage rate (%)',
+        fom = "Fixed O&M Cost (R/kW/yr)",
+        p_nom = 'Capacity (MW)',
+        name ='Power Station Name',
+        carrier = 'Carrier',
+        build_year = 'Commissioning Date',
+        decom_date = 'Decommissioning Date',
+        x = 'GPS Longitude',
+        y = 'GPS Latitude',
+        status = 'Status',
+        heat_rate = 'Heat Rate (GJ/MWh)',
+        fuel_price = 'Fuel Price (R/GJ)',
+        vom = 'Variable O&M Cost (R/MWh)',
+        max_ramp_up = 'Max Ramp Up (MW/min)',
+        max_ramp_down = 'Max Ramp Down (MW/min)',
+        max_ramp_start_up = 'Max Ramp Start Up (MW/min)',
+        max_ramp_shut_down = 'Max Ramp Shut Down (MW/min)',
+        start_up_cost = 'Start Up Cost (R)',
+        shut_down_cost = 'Shut Down Cost (R)',
+        p_min_pu = 'Min Stable Level (%)',
+        min_up_time = 'Min Up Time (h)',
+        min_down_time = 'Min Down Time (h)',
+        unit_size = 'Unit size (MW)',
+        units = 'Number units',
+        maint_rate = 'Typical annual maintenance rate (%)',
+        out_rate = 'Typical annual forced outage rate (%)',
     )
 
     # Calculate fields where pypsa uses different conventions
     gens['efficiency'] = (3.6/gens.pop(g_f['heat_rate'])).fillna(1)
     gens['marginal_cost'] = (3.6*gens.pop(g_f['fuel_price'])/gens['efficiency']).fillna(0) + gens.pop(g_f['vom'])
     gens['capital_cost'] = 1e3*gens.pop(g_f['fom'])
-    gens['ramp_limit_up'] = 60*gens.pop(g_f['max_ramp_up'])/gens[g_f['p_nom']]
-    gens['ramp_limit_down'] = 60*gens.pop(g_f['max_ramp_down'])/gens[g_f['p_nom']]    
+    gens['ramp_limit_up'] = 60*gens.pop(g_f['max_ramp_up'])/gens[g_f['unit_size']]
+    gens['ramp_limit_down'] = 60*gens.pop(g_f['max_ramp_down'])/gens[g_f['unit_size']]    
+    
+    # unit commitment parameters
+    gens['ramp_limit_start_up'] = 60*gens.pop(g_f['max_ramp_start_up'])/gens[g_f['unit_size']]
+    gens['ramp_limit_shut_down'] = 60*gens.pop(g_f['max_ramp_shut_down'])/gens[g_f['unit_size']]    
+    gens['start_up_cost'] = gens.pop(g_f['start_up_cost']).fillna(0)
+    gens['shut_down_cost'] = gens.pop(g_f['shut_down_cost']).fillna(0)
+    gens['min_up_time'] = gens.pop(g_f['min_up_time']).fillna(0)
+    gens['min_down_time'] = gens.pop(g_f['min_down_time']).fillna(0)
 
     gens = gens.rename(
-        columns={g_f[f]: f for f in {'p_nom', 'name', 'carrier', 'x', 'y','build_year','decom_date','min_stable'}})
+        columns={g_f[f]: f for f in {'p_nom', 'name', 'carrier', 'x', 'y','build_year','decom_date','p_min_pu'}})
     gens = gens.rename(columns={ps_f[f]: f for f in {'PHS_efficiency','PHS_max_hours'}})    
     gens = gens.rename(columns={csp_f[f]: f for f in {'CSP_max_hours'}})     
 
@@ -735,8 +746,75 @@ def assign_segmented_df_to_network(df, search_str, replace_str, target):
     target = segmented
 
 
-def get_start_year(n):
-    return n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
 
-def get_snapshots(n):
-    return n.snapshots.get_level_values(1) if n.multi_invest else n.snapshots
+def get_start_year(sns, multi_invest):
+    return sns.get_level_values(0)[0] if multi_invest else sns[0].year
+
+def get_snapshots(sns, multi_invest):
+    return sns.get_level_values(1) if multi_invest else sns
+
+def get_investment_periods(sns, multi_invest):
+    return sns.get_level_values(0).unique().to_list() if multi_invest else [sns[0].year]
+
+def adjust_by_p_max_pu(n, config):
+    for carrier in config.keys():
+        gen_list = n.generators[n.generators.carrier == carrier].index
+        for p in config[carrier]:#["p_min_pu", "ramp_limit_up", "ramp_limit_down"]:
+            n.generators_t[p][gen_list] = (
+                get_as_dense(n, "Generator", p)[gen_list] * get_as_dense(n, "Generator", "p_max_pu")[gen_list]
+            )
+
+def initial_ramp_rate_fix(n):
+    ramp_up_dense = get_as_dense(n, "Generator", "ramp_limit_up")
+    ramp_down_dense = get_as_dense(n, "Generator", "ramp_limit_down")
+    p_min_pu_dense = get_as_dense(n, "Generator", "p_min_pu")
+
+    limit_up = ~ramp_up_dense.isnull().all()
+    limit_down = ~ramp_down_dense.isnull().all()
+    
+    for y, y_prev in zip(n.investment_periods[1:], n.investment_periods[:-1]):
+        first_sns = (y, f"{y}-01-01 00:00:00")
+        new_build = n.generators.query("build_year <= @y & build_year > @y_prev").index
+
+        gens_up = new_build[limit_up[new_build]]
+        n.generators_t.ramp_limit_up[gens_up] = ramp_up_dense[gens_up]
+        n.generators_t.ramp_limit_up.loc[first_sns, gens_up] = np.maximum(p_min_pu_dense.loc[first_sns, gens_up], ramp_up_dense.loc[first_sns, gens_up])
+        
+        gens_down = new_build[limit_down[new_build]]
+        n.generators_t.ramp_limit_down[gens_down] = ramp_down_dense[gens_down]
+        n.generators_t.ramp_limit_down.loc[first_sns, gens_down] = np.maximum(p_min_pu_dense.loc[first_sns, gens_up], ramp_up_dense.loc[first_sns, gens_up])
+
+
+def apply_default_attr(df, attrs):
+    params = [
+        "bus", 
+        "carrier", 
+        "lifetime", 
+        "p_nom", 
+        "efficiency", 
+        "ramp_limit_up", 
+        "ramp_limit_down", 
+        "marginal_cost", 
+        "capital_cost"
+    ]
+    uc_params = [
+        "ramp_limit_start_up",
+        "ramp_limit_shut_down", 
+        "start_up_cost", 
+        "shut_down_cost", 
+        "min_up_time", 
+        "min_down_time",
+        #"p_min_pu",
+    ]
+    params += uc_params
+    
+    default_attrs = attrs[["default","type"]]
+    default_list = default_attrs.loc[default_attrs.index.isin(params), "default"].dropna().index
+
+    conv_type = {'int': int, 'float': float, "static or series": float, "series": float}
+    for attr in default_list:
+        default = default_attrs.loc[attr, "default"]
+        df[attr] = df[attr].fillna(conv_type[default_attrs.loc[attr, "type"]](default))
+    
+    return df
+

@@ -231,4 +231,4 @@ if __name__ == "__main__":
         save_to_geojson(inter_region_lines.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines)
     else:
         save_to_geojson(buses.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines) # Dummy file will not get used if single node model  
-    
+        

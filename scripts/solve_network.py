@@ -127,7 +127,7 @@ from pypsa.descriptors import (
 
 idx = pd.IndexSlice
 from vresutils.benchmark import memory_logger
-
+from xarray import DataArray
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning) # Comment out for debugging and development
 
@@ -154,7 +154,8 @@ def define_reserve_margin(n, model_setup, model_file, snakemake):
     res_mrgn = projections.loc["reserve_margin"]
 
     peak = n.loads_t.p_set.sum(axis=1).groupby(n.snapshots.get_level_values(0)).max() if n.multi_invest else n.loads_t.p_set.sum(axis=1).max()
-    peak = pd.Series(peak, index = n.snapshots.year.unique()) if not n.multi_invest else peak
+    peak = peak if n.multi_invest else pd.Series(peak, index = n.snapshots.year.unique())
+
     capacity_credit = snakemake.config["electricity"]["reserves"]["capacity_credit"]
 
     for y in peak.index:
@@ -179,12 +180,15 @@ def define_reserve_margin(n, model_setup, model_file, snakemake):
     
                 lhs += (
                     n.model.variables[f"{c}-p_nom"].sel({f"{c}-ext":ext_i}) 
-                    *xr.DataArray(n.df(c).loc[ext_i, "carrier"].map(capacity_credit)).rename({f"{c}":f"{c}-ext"})
+                    *DataArray(n.df(c).loc[ext_i, "carrier"].map(capacity_credit)).rename({f"{c}":f"{c}-ext"})
                 ).sum(f"{c}-ext")
 
             rhs = peak.loc[y]*(1+res_mrgn[y]) - fix_cap 
 
             n.model.add_constraints(lhs, ">=", rhs, name = f"reserve_margin_{y}")    
+
+
+
 
 
 
@@ -261,7 +265,7 @@ if __name__ == "__main__":
     define_reserve_margin(n, model_setup, model_file, snakemake)
 
     n.optimize.solve_model(solver_name="xpress",solver_options={"lpflags":4,"crossover":0})
-    x=1
+
 #     # for y in n.investment_periods:
 #     #     if reserve_requirements.loc[(model_setup['projected_parameters'],'reserve_margin_active'),y]:    
 #     #         active = (

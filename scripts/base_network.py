@@ -64,7 +64,7 @@ import re
 
 def create_network():
     n = pypsa.Network()
-    n.name = 'PyPSA-ZA2'
+    n.name = "PyPSA-ZA"
 
     return n
 
@@ -135,8 +135,8 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "base_network", 
             **{
-                "model_file":"grid-2040",
-                "regions":"11-supply",
+                "model_file":"val-LC-UNC",
+                "regions":"1-supply",
             }
         )
     line_config = snakemake.config["lines"]
