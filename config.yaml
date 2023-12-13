@@ -29,12 +29,12 @@ crs:
 # of scripts where the outputs are already built, these switches are useful for forced 
 # re-runs of the snakemake workflow, where you may not necessarily want to rebuild everything
 enable:
-  build_natura_raster: true # Rasters natural protection areas onto all cutout regions
+  build_natura_raster: false # Rasters natural protection areas onto all cutout regions
   build_topology: true # Base network topology
-  build_cutout: true #false # Atlite cutout 
+  build_cutout: false #false # Atlite cutout 
   use_eskom_wind_solar: false # Model defaults to Eskom hourly pu profiles for all wind and solar generators
   use_excel_wind_solar: [true,"../data/wind_solar_profiles.xlsx"] # Model defaults to excel input hourly pu profiles for all wind and solar generators  
-  build_renewable_profiles: true #false # Enable calculation of renewable profiles
+  build_renewable_profiles: false #false # Enable calculation of renewable profiles
 
 # Specification of relevent years for the model
 years: 
@@ -42,7 +42,7 @@ years:
   reference_weather_years: 
     # reference years used for solar PV and wind profiles - can be single or multiple years
     # if multiple years are specified these are applied sequencially to the simulation years
-    solar_pv: [2017, 2018]
+    solar_pv: [2012]
     wind: [2012, 2013]
 
     # reference years from actual Eskom data published at https://www.eskom.co.za/dataportal/ 
@@ -62,54 +62,55 @@ electricity:
   #renewable_carriers: [solar_pv, wind, solar_csp, biomass, hydro, hydro_import] # defines renewable carriers
   #group_ipp_generators: true # group IPPs by keyword in model_file
   conventional_generators: # generator planned and unplanned outages are included based on Eskom data
-    carriers: ["coal", "ocgt_diesel", "ocgt_gas", "ccgt_gas", "nuclear", hydro, hydro_import]
-    apply_grouping: true # if false indivudal plants are specified as generators
+    carriers: ["coal", "ocgt_diesel", "ocgt_gas", "ccgt_steam", "nuclear", hydro, hydro_import, "sasol_coal", "sasol_gas"]
+    apply_grouping: false # if false indivudal plants are specified as generators
     implement_availability: true
-    fix_ref_years: [2021] #if multiple years specified an average is used
+    fix_ref_years: [2019] #if multiple years specified an average is used
     ext_ref_years: [2017] #if multiple years specified an average is used
+    
     extendable_reference: 
     # New generator availability is based on an existing Eskom generator
       coal: "Lethabo"
       ocgt_diesel: "Ankerlig"
       ocgt_gas: "Ankerlig"
-      ccgt_gas: "Ankerlig"
+      ccgt_steam: "Ankerlig"
       nuclear: "Koeberg"
       hydro: "Gariep"
       #hydro_import: "Cahora Bassa"
 
-  # Only for new generators, existing generators are specified in model_file
-  # static flag means that the absolute number is specified e.g if 30% is given the 30% min stable level is applied
-  # dynamic flag means that the number is specified as a fraction of the p_max_pu i.e. 30% of what is operational if 
-  # outages are represented by a reduction in p_max_pu
-  min_stable_levels:
-    coal: [0, static] 
-    OCGT: [0, static] 
-    CCGT: [0, static]
-    nuclear: [0, dynamic]
-    biomass: [0, static]
+  ccgt_gt_to_st_ratio: 0.3 # ratio of gas turbines to steam turbines in CCGT plants
 
-  min_capacity_factor: # Minimum annual capacity factor 
-    CCGT: 0.3 
-    nuclear: 0.5
+  extendable_parameters:
+    defaults:
+      discount_rate: 0.082
+      co2_emissions: 0
+      FOM: 0
+      VOM: 0
+      heat_rate: 0
+      efficiency: 1
+      fuel: 0
+      investment: 0
+      lifetime: 20
+      min_stable_level: 0
 
-
-  extendable_carriers:
-    Generator: [wind, solar_pv, ccgt_gas, ocgt_diesel] #, coal, nuclear, biomass, hydro]
-    StorageUnit: [battery, phs] 
-
-
-  operational_reserve:
-    activate: false
-    epsilon_load: 0.02
-    epsilon_vres: 0.02
-    contingency: 4000
+  adjust_by_p_max_pu: #adjusts ramp limit and p_min_pu by outages representated by p_max_pu
+    coal: [ramp_limit_up, ramp_limit_down]
+    nuclear: [ramp_limit_up, ramp_limit_down, p_min_pu] # leave empty to ignore
+  
+  # minimum station hourly generation % of p_nom
+  # useful for avoiding unrealistic coal fleet operation in capacity expansion plan without unit committment
+  min_hourly_station_gen: 
+    fixed:
+      coal: 0.3 # assume 1 unit at part load
+    extendable:
+      coal: 0.3 # assume 1 unit at part load
 
   reserves:
     capacity_credit:
       coal: 0.8
-      ocgt-gas: 1
-      ocgt-diesel: 1
-      ccgt-gas: 1
+      ocgt_gas: 1
+      ocgt_diesel: 1
+      ccgt_steam: 1
       biomass: 1
       wind: 0.1 #.i.e only 10% of installed wind capacity is counted towards reserve_margin
       phs: 1
@@ -120,11 +121,10 @@ electricity:
         spinning: ["coal", "nuclear", "phs", "biomass", "hydro", "hydro_import"]
         non_spinning: ["coal", "ocgt_diesel", "ocgt_gas", "ccgt_gas", "phs", "biomass", "hydro", "hydro_import"]
   
-  max_hours:
-    battery: 3
-    phs: 20
-    h2: 10
-
+  dispatch_committable_carriers:
+    existing: [coal]
+    extended: [coal, ccgt_steam]
+  
 respotentials:
   # Gives us ball-park the available areas the IWES study reports
   landusetype_percent:
@@ -149,7 +149,7 @@ atlite:
     #closed: "left" # end is not inclusive
   nprocesses: 10
   cutouts:
-    RSA-2017-era5:
+    RSA-2017_20-era5:
       module: era5 # in priority order
       x: [16, 35]
       y: [-35., -21]
@@ -170,7 +170,7 @@ atlite:
 
 renewable:
   wind:
-    cutout: RSA-2017-era5
+    cutout: RSA-2017_20-era5
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_2020ATB_4MW
@@ -195,7 +195,7 @@ renewable:
     clip_p_max_pu: 1.e-2
 
   solar_pv:
-    cutout: RSA-2017-era5
+    cutout: RSA-2017_20-era5
     resource:
       method: pv
       panel: CSi
@@ -270,16 +270,6 @@ costs:
   EUR_to_ZAR: 17.83
 
   load_shedding: 100000 #R100/kWh
-  defaults:
-    discount_rate: 0.082
-    co2_emissions: 0
-    FOM: 0
-    VOM: 0
-    heat_rate: 0
-    efficiency: 1
-    fuel: 0
-    investment: 0
-    lifetime: 20
 
   emission_prices: # only used with the option Ep (emission prices)
     # Externality costs from Integrated Energy Plan by the ZA DOE
@@ -290,16 +280,9 @@ costs:
     particulate: 11.3e+3
 
 tsam_clustering:
-  nprocesses: 15
+  nprocesses: 10
   solver: "cbc" #need to use open source solver here due to parallel processing of years
-
-
-unit_conversion:
-  GJ: 0.277778 #MWh thermal
-  TJ: 277.778 #MWh thermal
-  PJ: 277778 #MWh thermal
-  TWh: 1.e+6 #MWh
-  
+ 
 
 solving:
   tmpdir: /tmp
