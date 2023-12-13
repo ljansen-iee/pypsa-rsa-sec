@@ -614,6 +614,7 @@ def read_geojson(fn):
         # else return an empty GeoDataFrame
         return gpd.GeoDataFrame(geometry=[])
 
+
 def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
     costs_yr = costs.columns.drop('unit')
     costs.loc[costs.unit.str.contains("/kW")==True, costs_yr ] *= 1e3
@@ -628,7 +629,6 @@ def convert_cost_units(costs, USD_ZAR, EUR_ZAR):
     costs.loc[costs.unit.str.contains("R/GJ")==True, costs_yr ] *= 3.6 
     costs.loc[costs.unit.str.contains("R/GJ")==True, 'unit'] = 'R/MWhe' 
     return costs
-
 
 def map_component_parameters(gens, first_year):
     ps_f = dict(
@@ -746,7 +746,6 @@ def assign_segmented_df_to_network(df, search_str, replace_str, target):
     target = segmented
 
 
-
 def get_start_year(sns, multi_invest):
     return sns.get_level_values(0)[0] if multi_invest else sns[0].year
 
@@ -817,4 +816,3 @@ def apply_default_attr(df, attrs):
         df[attr] = df[attr].fillna(conv_type[default_attrs.loc[attr, "type"]](default))
     
     return df
-
