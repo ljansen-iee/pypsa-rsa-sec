@@ -67,7 +67,7 @@ if config['enable']['build_topology']:
         output:
             buses='resources/buses_{regions}.geojson',
             lines='resources/lines_{regions}.geojson',
-            parallel_lines='resources/parallel_lines_{regions}.csv',
+            #parallel_lines='resources/parallel_lines_{regions}.csv',
         threads: 1
         script: "scripts/build_topology.py"
 
@@ -117,10 +117,10 @@ else:
 
 rule add_electricity:
     input:
-        **{
-            f"profile_{tech}": f"resources/profile_{tech}_"+ "{regions}_{resarea}.nc"
-            for tech in renewable_carriers
-        },
+        # **{
+        #     f"profile_{tech}": f"resources/profile_{tech}_"+ "{regions}_{resarea}.nc"
+        #     for tech in renewable_carriers
+        # },
         base_network='networks/base_{model_file}_{regions}.nc',
         supply_regions='resources/buses_{regions}.geojson',
         load='data/bundle/SystemEnergy2009_22.csv',
@@ -128,38 +128,46 @@ rule add_electricity:
         #solar_area='resources/area_solar_{regions}_{resarea}.csv',
         eskom_profiles="data/eskom_pu_profiles.csv",
         model_file="data/model_file.xlsx",
-        existing_generators_eaf="data/Eskom EAF data.xlsx",
+        fixed_generators_eaf="data/Eskom EAF data.xlsx",
     output: "networks/elec_{model_file}_{regions}_{resarea}.nc",
     benchmark: "benchmarks/add_electricity/elec_{model_file}_{regions}_{resarea}"
     script: "scripts/add_electricity.py"
 
-rule prepare_network:
+rule prepare_and_solve_network:
     input:
         network="networks/elec_{model_file}_{regions}_{resarea}.nc",
         model_file="data/model_file.xlsx",
-        #onwind_area='resources/area_wind_{regions}_{resarea}.csv',
-        #solar_area='resources/area_solar_{regions}_{resarea}.csv',
-
-    output:"networks/pre_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
-    log:"logs/prepare_network/pre_{model_file}_{regions}_{resarea}_l{ll}_{opts}.log",
-    benchmark:"benchmarks/prepare_network/pre_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
+    output:"networks/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
+    log:"logs/prepare_and_solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.log",
+    benchmark:"benchmarks/prepare_and_solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
     script:
-        "scripts/prepare_network.py"
+        "scripts/prepare_and_solve_network.py"
 
-rule solve_network:
-    input: 
-        network="networks/pre_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
+rule solve_network_dispatch:
+    input:
+        network="networks/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
         model_file="data/model_file.xlsx",
-    output: "results/networks/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc"
-    shadow: "shallow"
-    log:
-        solver=normpath(
-            "logs/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}_solver.log"
-        ),
-        python="logs/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}_python.log",
-        memory="logs/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}_memory.log",
-    benchmark: "benchmarks/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}"
-    script: "scripts/solve_network.py"
+    output:"networks/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}.nc",
+    log:"logs/solve_network_dispatch:/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}.log",
+    benchmark:"benchmarks/solve_network_dispatch:/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}.nc",
+    script:
+        "scripts/solve_network_dispatch.py"
+
+
+# rule solve_network:
+#     input: 
+#         network="networks/pre_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
+#         model_file="data/model_file.xlsx",
+#     output: "results/networks/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc"
+#     shadow: "shallow"
+#     log:
+#         solver=normpath(
+#             "logs/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}_solver.log"
+#         ),
+#         python="logs/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}_python.log",
+#         memory="logs/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}_memory.log",
+#     benchmark: "benchmarks/solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}"
+#     script: "scripts/solve_network.py"
 
 
 rule plot_network:
