@@ -69,7 +69,6 @@ List of cost related functions
 
 """
 
-
 def _add_missing_carriers_from_costs(n, costs, carriers):
     start_year = n.snapshots.get_level_values(0)[0] if n.multi_invest else n.snapshots[0].year
     missing_carriers = pd.Index(carriers).difference(n.carriers.index)
@@ -88,6 +87,8 @@ List of IO functions
     - to_csv_nafix -> 
 """
 
+# list of recognised nan values (NA and na excluded as may be confused with Namibia 2-letter country code)
+NA_VALUES = ["NULL", "", "N/A", "NAN", "NaN", "nan", "Nan", "n/a", "null"]
 
 def sets_path_to_root(root_directory_name):
     """
@@ -816,3 +817,129 @@ def apply_default_attr(df, attrs):
         df[attr] = df[attr].fillna(conv_type[default_attrs.loc[attr, "type"]](default))
     
     return df
+
+def annuity(n,r=0.07):
+    """Calculate the annuity factor for an asset with lifetime n years and
+    discount rate of r, e.g. annuity(20,0.05)*20 = 1.6"""
+
+    if isinstance(r, pd.Series):
+        return pd.Series(1/n, index=r.index).where(r == 0, r/(1. - 1./(1.+r)**n))
+    elif r > 0:
+        return r/(1. - 1./(1.+r)**n)
+    else:
+        return 1/n
+    
+def prepare_costs(cost_file, USD_ZAR, discount_rate, Nyears, lifetime):
+    # set all asset costs and other parameters
+    costs = pd.read_csv(cost_file, index_col=[0, 1]).sort_index()
+
+    # correct units to MW and EUR
+    costs.loc[costs.unit.str.contains("/kW"), "value"] *= 1e3
+    costs["unit"] = costs["unit"].str.replace("/kW","/MW")
+    
+    costs.loc[costs.unit.str.contains("USD"), "value"] *= USD_ZAR
+    costs["unit"] = costs["unit"].str.replace("USD","ZAR")
+    
+    # min_count=1 is important to generate NaNs which are then filled by fillna
+    costs = (
+        costs.loc[:, "value"].unstack(level=1).groupby("technology").sum(min_count=1)
+    )
+    costs = costs.fillna(
+        {
+            "CO2 intensity": 0,
+            "FOM": 0,
+            "VOM": 0,
+            "discount rate": discount_rate,
+            "efficiency": 1,
+            "fuel": 0,
+            "investment": 0,
+            "lifetime": lifetime,
+        }
+    )
+
+    def annuity_factor(v):
+        return annuity(v["lifetime"], v["discount rate"]) + v["FOM"] / 100
+
+    costs["fixed"] = [
+        annuity_factor(v) * v["investment"] * Nyears for i, v in costs.iterrows()
+    ]
+
+    return costs
+
+def create_network_topology(
+    n, prefix, like="ac", connector=" <-> ", bidirectional=True
+):
+    """
+    Create a network topology like the power transmission network.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    prefix : str
+    connector : str
+    bidirectional : bool, default True
+        True: one link for each connection
+        False: one link for each connection and direction (back and forth)
+
+    Returns
+    -------
+    pd.DataFrame with columns bus0, bus1 and length
+    """
+
+    ln_attrs = ["bus0", "bus1", "length"]
+    lk_attrs = ["bus0", "bus1", "length", "underwater_fraction"]
+
+    # TODO: temporary fix for whan underwater_fraction is not found
+    if "underwater_fraction" not in n.links.columns:
+        if n.links.empty:
+            n.links["underwater_fraction"] = None
+        else:
+            n.links["underwater_fraction"] = 0.0
+
+    candidates = pd.concat(
+        [n.lines[ln_attrs], n.links.loc[n.links.carrier == "DC", lk_attrs]]
+    ).fillna(0)
+
+    positive_order = candidates.bus0 < candidates.bus1
+    candidates_p = candidates[positive_order]
+    swap_buses = {"bus0": "bus1", "bus1": "bus0"}
+    candidates_n = candidates[~positive_order].rename(columns=swap_buses)
+    candidates = pd.concat([candidates_p, candidates_n])
+
+    def make_index(c):
+        return prefix + c.bus0 + connector + c.bus1
+
+    topo = candidates.groupby(["bus0", "bus1"], as_index=False).mean()
+    topo.index = topo.apply(make_index, axis=1)
+
+    if not bidirectional:
+        topo_reverse = topo.copy()
+        topo_reverse.rename(columns=swap_buses, inplace=True)
+        topo_reverse.index = topo_reverse.apply(make_index, axis=1)
+        topo = pd.concat([topo, topo_reverse])
+
+    return topo
+
+def locate_bus(coords, regions, col="name"):
+    
+    from shapely.geometry import Point
+    
+    point = Point(coords["x"], coords["y"])
+    
+    try:
+        return regions[
+            regions.contains(point)][ # filter regions which contains point and returns the bus
+                col].item()  
+
+    except ValueError:
+        return regions[
+            regions.geometry == min(regions.geometry, key=(point.distance))][ # looks for closest one shape=node
+            col].item()  
+            
+def cycling_shift(df, steps=1):
+    """Cyclic shift on index of pd.Series|pd.DataFrame by number of steps"""
+    df = df.copy()
+    new_index = np.roll(df.index, steps)
+    df.values[:] = df.reindex(index=new_index).values
+    return df
+
