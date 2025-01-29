@@ -26,13 +26,13 @@ The tutorial will cover examples on how to
 - configure and customise the PyPSA-ZA model and
 - step-by-step exucetion of the ``snakemake`` workflow, from network creation through solving the network to analysing the results.
 
-The ``model_file.xlsx`` and ``config.yaml`` files are utilised to customise the PyPSA-ZA model. The tutorial's configuration is contained in 
-``model_file_tutorial.xlsx`` and ``config.tutorial.yaml``. Use the configuration and model setup files ``config.yaml`` and ``model_file.xlsx`` to run the tutorial
+The ``config/model_file.xlsx`` and ``config/config.yaml`` files are utilised to customise the PyPSA-ZA model. The tutorial's configuration is contained in 
+``model_file_tutorial.xlsx`` and ``config.tutorial.yaml``. Use the configuration and model setup files ``config/config.yaml`` and ``config/model_file.xlsx`` to run the tutorial
 
 .. code:: bash
 
-    .../pypsa-za % cp config.tutorial.yaml config.yaml
-    .../pypsa-za % cp model_file_tutorial.xlsx model_file.xlsx
+    .../pypsa-za % cp config.tutorial.yaml config/config.yaml
+    .../pypsa-za % cp model_file_tutorial.xlsx config/model_file.xlsx
 
 ..
     This configuration is set to download a reduced data set via the rules :mod:`retrieve_databundle`,
@@ -43,10 +43,10 @@ The ``model_file.xlsx`` and ``config.yaml`` files are utilised to customise the 
 How to customise PyPSA-ZA?
 =============================
 
-Model setup: model_file.xlsx
+Model setup: config/model_file.xlsx
 ----------------------------
 
-The ``model_file.xlsx`` contains databases of existing conventional and renewable power stations owned by Eskom or by IPP's.  
+The ``config/model_file.xlsx`` contains databases of existing conventional and renewable power stations owned by Eskom or by IPP's.  
 
 - existing Eskom stations
     - scenario
@@ -112,10 +112,10 @@ The ``model_file.xlsx`` contains databases of existing conventional and renewabl
     - scenario: costs
 
 
-Configuration: config.yaml
+Configuration: config/config.yaml
 ----------------------------
 
-The model can be further adapted using the ``config.yaml`` to only include a select number of ``regions`` (e.g. ``1-supply``, ``11-supply`` or ``27-supply``). The tutorial is setup to run the 
+The model can be further adapted using the ``config/config.yaml`` to only include a select number of ``regions`` (e.g. ``1-supply``, ``11-supply`` or ``27-supply``). The tutorial is setup to run the 
 ``1-supply`` which uses a single node for the entire country.
 
 .. literalinclude:: ../config.tutorial.yaml
@@ -213,7 +213,7 @@ on the commercial solvers Gurobi or CPLEX (for which free academic licenses are 
 
     To run the tutorial, either install CBC and Ipopt (see instructions for :ref:`installation`).
 
-    Alternatively, choose another installed solver in the ``config.yaml`` at ``solving: solver:``.
+    Alternatively, choose another installed solver in the ``config/config.yaml`` at ``solving: solver:``.
 
 Note, that we only note major changes to the provided default configuration that is comprehensibly documented in :ref:`config`.
 There are many more configuration options beyond what is adapted for the tutorial!
@@ -223,7 +223,7 @@ A good starting point to customize your model are settings of the default config
 
 .. code:: bash
 
-    .../pypsa-za (pypsa-za) % cp config.default.yaml config.yaml
+    .../pypsa-za (pypsa-za) % cp config.default.yaml config/config.yaml
 
 
 How to execute different parts of the workflow?
@@ -262,7 +262,7 @@ PyPSA-ZA mostly relies on :ref:`input datasets <data_workflow>` specific to Sout
 1. Adjust the model configuration
 ---------------------------------
 
-The main parameters needed to customize the inputs for your national-specific data are defined in the :ref:`configuration <config>` file `config.yaml`. 
+The main parameters needed to customize the inputs for your national-specific data are defined in the :ref:`configuration <config>` file `config/config.yaml`. 
 The configuration settings should be adjusted according to a particular problem you are intending to model. The main country-dependent parameters are:
 
 * `regions` parameter which defines the network topology;
@@ -303,7 +303,7 @@ In case you are interested in other parts of the world you have to generate a cu
 
 These steps are required to use CDS API which allows an automatic file download while executing `build_cutouts` rule.
 
-Normally cutout extent is calculated from the shape of the requested region defined by the `countries` parameter in the configuration file `config.yaml`. 
+Normally cutout extent is calculated from the shape of the requested region defined by the `countries` parameter in the configuration file `config/config.yaml`. 
 It could make sense to set the countries list as big as it's feasible when generating a cutout. A considered area can be narrowed anytime when building 
 a specific model by adjusting content of the `countries` list.
 

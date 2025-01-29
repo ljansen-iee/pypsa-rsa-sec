@@ -78,7 +78,7 @@ The dataset is used to restrict renewable energy expansion to the strategic tran
 Economical
 ------------------------------------
 
-* **costs.csv** spreadsheet in `model_file.xlsx` file which contains the default costs of the technologies along with their typical lifetime and efficiency values. The dataset is intended to give a starting point for running the model while user specific adjustments may be made. 
+* **costs.csv** spreadsheet in `config/model_file.xlsx` file which contains the default costs of the technologies along with their typical lifetime and efficiency values. The dataset is intended to give a starting point for running the model while user specific adjustments may be made. 
 
 * **ZAF15adjv4.tif** raster dataset of the population located in `data/bundle/South_Africa_100m_Population/ZAF15adjv4.tif`
 
@@ -106,5 +106,5 @@ Currently the pre-build file is calculated for South Africa using the `SAPAD` an
 
 5. Scenario generation spreadsheet
 ===================================
-model_file="model_file.xlsx",
+model_file="config/model_file.xlsx",
 

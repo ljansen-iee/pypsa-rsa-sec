@@ -106,15 +106,15 @@ It might be the case that you can only retrieve solutions by using a commercial 
 Set Up the Default Configuration
 ================================
 
-PyPSA-ZA has several configuration options that must be specified in a ``config.yaml`` file located in the root directory.
+PyPSA-ZA has several configuration options that must be specified in a ``config/config.yaml`` file located in the root directory.
 An example configuration ``config.default.yaml`` is maintained in the repository.
 More details on the configuration options are in :ref:`config`.
 
-Before first use, create a ``config.yaml`` by copying the example.
+Before first use, create a ``config/config.yaml`` by copying the example.
 
 .. code:: bash
 
-    .../pypsa-za % cp config.default.yaml config.yaml
+    .../pypsa-za % cp config.default.yaml config/config.yaml
 
-Users are advised to regularly check their own ``config.yaml`` against changes in the ``config.default.yaml``
+Users are advised to regularly check their own ``config/config.yaml`` against changes in the ``config.default.yaml``
 when pulling a new version from the remote repository.

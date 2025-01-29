@@ -1,11 +1,41 @@
 version: 2.0
 
+SUMMARY_DIR: "results/20241101/"
+
 scenario_matrix:
-  model_file: ["spd_test"]
-  regions: [1-supply] #, 11-supply]
-  resarea: [redz]
-  ll: ["copt"]
-  opts: [LC]
+  model_file: [
+    "CP-2030", 
+    "NZ-2030", 
+    "NZEE-2030",
+    "CP-2040", 
+    "NZ-2040", 
+    "NZEE-2040",
+    "CP-2050", 
+    "NZ-2050", 
+    "NZEE-2050",
+    "NZ-65MtCO2-2050",
+    "NZ-35MtCO2-2050",
+    "NZEE-65MtCO2-2050",
+    "NZEE-35MtCO2-2050",
+    "NZEE-freeH2-2050",
+    "CP-GWC-2030", 
+    "NZ-GWC-2030", 
+    "NZEE-GWC-2030",
+    "CP-GWC-2040", 
+    "NZ-GWC-2040", 
+    "NZEE-GWC-2040",
+    "CP-GWC-2050", 
+    "NZ-GWC-2050", 
+    "NZEE-GWC-2050",
+    ]
+  regions: [11-supply] #, 11-supply]
+  resarea: [corridors]
+  ll: [
+    "v1.0",
+    "v1.1",
+    "v1.2"
+    ]
+  opts: ["1H-Co2L-wacc8","1H-Co2L-wacc11","3H-Co2L-wacc8"] 
 
 logging:
   level: INFO
@@ -33,7 +63,7 @@ enable:
   build_topology: true # Base network topology
   build_cutout: false #false # Atlite cutout 
   use_eskom_wind_solar: false # Model defaults to Eskom hourly pu profiles for all wind and solar generators
-  use_excel_wind_solar: [true,"../data/wind_solar_profiles.xlsx"] # Model defaults to excel input hourly pu profiles for all wind and solar generators  
+  use_excel_wind_solar: [true,"data/bundle/wind_solar_profiles_IEE-allocation-study.xlsx"] #[false,"data/wind_solar_profiles.xlsx"] # Model defaults to excel input hourly pu profiles for all wind and solar generators  
   build_renewable_profiles: false #false # Enable calculation of renewable profiles
 
 # Specification of relevent years for the model
@@ -42,8 +72,8 @@ years:
   reference_weather_years: 
     # reference years used for solar PV and wind profiles - can be single or multiple years
     # if multiple years are specified these are applied sequencially to the simulation years
-    solar_pv: [2012]
-    wind: [2012, 2013]
+    solar_pv: [2017]
+    wind: [2017]
 
     # reference years from actual Eskom data published at https://www.eskom.co.za/dataportal/ 
     # can be single or multiple years if multiple years are specified these are applied 
@@ -82,7 +112,7 @@ electricity:
 
   extendable_parameters:
     defaults:
-      discount_rate: 0.082
+      discount_rate: 0.082 #0.082 #0.11
       co2_emissions: 0
       FOM: 0
       VOM: 0
@@ -94,16 +124,18 @@ electricity:
       min_stable_level: 0
 
   adjust_by_p_max_pu: #adjusts ramp limit and p_min_pu by outages representated by p_max_pu
-    coal: [ramp_limit_up, ramp_limit_down]
-    nuclear: [ramp_limit_up, ramp_limit_down, p_min_pu] # leave empty to ignore
+    # leave empty to ignore
+    coal: [] #ramp_limit_up, ramp_limit_down
+    nuclear: [] #ramp_limit_up, ramp_limit_down, p_min_pu 
   
   # minimum station hourly generation % of p_nom
   # useful for avoiding unrealistic coal fleet operation in capacity expansion plan without unit committment
   min_hourly_station_gen: 
+    enable_for_eskom_re: true
     fixed:
-      coal: 0.3 # assume 1 unit at part load
+      coal: 0.0 # assume 1 unit at part load
     extendable:
-      coal: 0.3 # assume 1 unit at part load
+      coal: 0.0 # assume 1 unit at part load
 
   reserves:
     capacity_credit:
@@ -144,11 +176,19 @@ respotentials:
 
 atlite:
   cutout_snapshots:
-    start: "2017-01-01"
-    end: "2018-01-01"
+    start: "2020-01-01"
+    end: "2021-01-01"
+    inclusive: "left" # end is not inclusive
     #closed: "left" # end is not inclusive
   nprocesses: 10
   cutouts:
+    RSA-2020_22-era5:
+      module: era5 # in priority order
+      x: [16, 35]
+      y: [-35., -21]
+      dx: 0.3
+      dy: 0.3
+      time: ['2020','2022']
     RSA-2017_20-era5:
       module: era5 # in priority order
       x: [16, 35]
@@ -170,7 +210,7 @@ atlite:
 
 renewable:
   wind:
-    cutout: RSA-2017_20-era5
+    cutout: RSA-2020_22-era5
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_2020ATB_4MW
@@ -195,7 +235,7 @@ renewable:
     clip_p_max_pu: 1.e-2
 
   solar_pv:
-    cutout: RSA-2017_20-era5
+    cutout: RSA-2020_22-era5
     resource:
       method: pv
       panel: CSi
@@ -253,8 +293,9 @@ lines:
   s_nom_max: .inf
   length_factor: 1.25
   dc_type: "DC_custom_linetype"
-  status: ["existing"] # "zero": set capacity to zero, "remove": remove, "keep": with full capacity
+  status: ["existing"] # "planned" (existing+planned MWkm are 139% of existing) "zero": set capacity to zero, "remove": remove, "keep": with full capacity
   extend_topology: true # if true, lines between adjacent regions that do not exist are added for expansion
+  convert_lines_to_links: false
 
 links:
   p_max_pu: 1.0
@@ -263,29 +304,110 @@ links:
   length_factor: 1.25
 
 costs:
-  # costs come from data/technology_costs.xlsx
-  discount_rate: 0.082
-  year: 2030
-  USD_to_ZAR: 18.24
-  EUR_to_ZAR: 17.83
-
+  discount_rate: 0.082 #0.12 #0.082
+  lifetime: 25 #default lifetime
+  #year: 2030
+  USD_to_ZAR: 18.4527 # https://www.exchangerates.org.uk/USD-ZAR-spot-exchange-rates-history-2023.html
+  EUR_to_ZAR: 19.62681 # https://www.exchangerates.org.uk/USD-ZAR-spot-exchange-rates-history-2023.html
   load_shedding: 100000 #R100/kWh
 
-  emission_prices: # only used with the option Ep (emission prices)
-    # Externality costs from Integrated Energy Plan by the ZA DOE
-    co2: 0.27e+3
-    sox: 7.6e+3
-    nox: 4.5e+3
-    hg: 41484.e-6 # is also part of the excel sheet
-    particulate: 11.3e+3
+  # emission_prices: # only used with the option Ep (emission prices)
+  #   # Externality costs from Integrated Energy Plan by the ZA DOE
+  #   co2: 0.27e+3
+  #   sox: 7.6e+3
+  #   nox: 4.5e+3
+  #   hg: 41484.e-6 # is also part of the excel sheet
+  #   particulate: 11.3e+3
 
 tsam_clustering:
   nprocesses: 10
   solver: "cbc" #need to use open source solver here due to parallel processing of years
  
+sector:
+  custom_industry_distribution_keys: false
+  industry_util_factor: 0.7   
+  district_heating:
+    potential: 0.1 #maximum fraction of urban demand which can be supplied by district heating
+      #increase of today's district heating demand to potential maximum district heating share
+      #progress = 0 means today's district heating share, progress=-1 means maxumzm fraction of urban demand is supplied by district heating
+    progress: 1
+      #2020: 0.0
+      #2030: 0.3
+      #2040: 0.6
+      #2050: 1.0
+    district_heating_loss: 0.15 
+  boilers: true
+  oil_boilers: false
+  chp: false
+  micro_chp: false
+  solar_thermal: true
+  heat_pump_sink_T: 55 #Celsius, based on DTU / large area radiators; used un build_cop_profiles.py
+  solar_cf_correction: 0.788457 # = >>>1/1.2683
+  bev_plug_to_wheel_efficiency: 0.2 #kWh/km from EPA https://www.fueleconomy.gov/feg/ for Tesla Model S
+  bev_charge_efficiency: 0.9 #BEV (dis-)charging efficiency
+  transport_heating_deadband_upper: 20.
+  transport_heating_deadband_lower: 15.
+  ICE_lower_degree_factor: 0.375 #in per cent increase in fuel consumption per degree above deadband
+  ICE_upper_degree_factor: 1.6
+  EV_lower_degree_factor: 0.98
+  EV_upper_degree_factor: 0.63
+  bev_avail_max: 0.95
+  bev_avail_mean: 0.8
+  bev_dsm_restriction_value: 0.75 #Set to 0 for no restriction on BEV DSM
+  bev_dsm_restriction_time: 7 #Time at which SOC of BEV has to be dsm_restriction_value
+  v2g: false #allows feed-in to grid from EV battery
+  bev_dsm: true #turns on EV battery
+  bev_energy: 0.05 #average battery size in MWh
+  bev_availability: 0.5 #How many cars do smart charging
+  transport_fuel_cell_efficiency: 0.5
+  transport_internal_combustion_efficiency: 0.3
+  biomass_transport: false  # biomass transport between nodes
+  biomass_transport_default_cost: 0.1 #EUR/km/MWh
+  solid_biomass_potential: 43 # TWh/a, Potential of whole modelled area
+  biogas_potential: 0.5 # TWh/a, Potential of whole modelled area
+  cc: true
+  min_part_load_fischer_tropsch: 0.9
+  conventional_generation: # generator : carrier
+    OCGT: gas
+    CCGT: gas
+  gas:
+    spatial_gas: true # ALWAYS TRUE
+    network: false # ALWAYS FALSE for now (NOT USED)
+    network_data: GGIT # Global dataset -> 'GGIT' , European dataset -> 'IGGIELGN'
+    network_data_GGIT_status: ['Construction', 'Operating', 'Idle', 'Shelved', 'Mothballed', 'Proposed']
+  hydrogen:
+    network: true
+    network_limit: 2000 #GWkm
+    network_routes: "greenfield" # "gas or "greenfield". If "gas"  ->  the network data are fetched from ["sector"]["gas"]["network_data"]. If "greenfield"  -> the network follows the topology of electrical transmission lines
+    gas_network_repurposing: false # If true -> ["sector"]["gas"]["network"] is automatically false
+  co2_network: false
+  co2_sequestration_potential: 1 #MtCO2/a sequestration potential for Europe
+  co2_sequestration_cost: 10 #EUR/tCO2 for sequestration of CO2
+  hydrogen_underground_storage: false
+  shipping_hydrogen_liquefaction: false
+  shipping_average_efficiency: 0.4 #For conversion of fuel oil to propulsion in 2011
+  shipping_hydrogen_share: #1.0
+    2030: 0.00
+    2040: 0.05
+    2050: 0.10
+  oil:
+    spatial_oil: true
+  methanation: true
+  helmeth: false  
+  SMR: false
+  dac: true
+
+fossil_reserves:
+  ctl_oil: 85 #TWh # This is the annual Coal-to-Liquid refinery capacity (reduced by 0.85) in South Africa of Sasol Secunda. #https://en.wikipedia.org/wiki/Secunda_CTL
+
+solar_thermal:
+  clearsky_model: simple
+  orientation:
+    slope: 45.
+    azimuth: 180.
 
 solving:
-  tmpdir: /tmp
+  tmpdir: ./mytemp
   options:
     clip_p_max_pu: 1.e-2
     load_shedding: true
@@ -299,16 +421,28 @@ solving:
     # max_iterations: 1
     # nhours: 10
   solver:
-    name: xpress
-    lpflags: 4
-    crossover: 0
-    bargapstop: 1.e-5
-    barstart: -1 #use xpress warmstart
+    # name: xpress
+    # lpflags: 4
+    # crossover: 0
+    # bargapstop: 1.e-5
+    # barstart: -1 #use xpress warmstart
     #baralg: 2 
     #barstartweight: 1
     # FeasibilityTol: 1.e-6
     # LogToConsole: 0
     # OutputFlag: 1
+    name: gurobi
+    threads: 8
+    method: 2 # barrier
+    crossover: 0
+    BarConvTol: 1.e-7
+    OptimalityTol: 1.e-6
+    Seed: 123
+    AggFill: 0
+    PreDual: 0
+    GURO_PAR_BARDENSETHRESH: 200 #5000
+    BarHomogeneous: 1
+    BarOrder: 0
 
 plotting:
   map:
@@ -344,12 +478,14 @@ plotting:
     "hydro_import": "#004F95"
     "hydro+PHS": "#004F95"
     "PHS": "#004F95"
+    "phs": "#004F95"
     "hydro reservoir": "#004F95"
     "hydroelectricity": "#004F95"
     "ror": "#4adbc8"
     "run of river": "#4adbc8"
     "solar": "#FFBB4E"
     "solar PV": "#FFBB4E"
+    "solar_pv": "#FFBB4E"
     "solar_csp": "#FEED82"
     "biomass": "#0c6013"
     "solid biomass": "#06540d"
@@ -357,11 +493,16 @@ plotting:
     "waste": "#68896b"
     "geothermal": "#ba91b1"
     "OCGT": "#8D7867"
+    "ocgt_gas": "#8D7867"
+    "sasol_gas": "#8D7867"
+    "ocgt_diesel": "#262626"
     "gas": "#d35050"
     "natural gas": "#d35050"
     "CCGT": "#CCC8C8"
+    "ccgt_steam": "#CCC8C8"
     "nuclear": "#C84936"
     "coal": "#3C3C3C"
+    "sasol_coal": "#3C3C3C"
     "lignite": "#9e5a01"
     "diesel": "#262626"
     "H2": "#ea048a"
@@ -381,18 +522,262 @@ plotting:
     "Load": "#FF0000"
   nice_names:
     OCGT: "OCGT" #"Open-Cycle Gas"
+    sasol_gas: "OCGT"
     CCGT: "CCGT" #"Combined-Cycle Gas"
+    ccgt_steam: "CCGT"
+    ocgt_diesel: "OCGT (Diesel)"
     offwind-ac: "Offshore Wind (AC)"
     offwind-dc: "Offshore Wind (DC)"
     wind: "Wind"
-    solar: "PV"
+    solar_pv: "Solar PV"
+    solar_csp: "Solar CSP"
     phs: "Pumped Hydro Storage"
     hydro: "Hydro"
     hydro+PHS: "Hydro+PS"
     battery: "Battery"
     H2: "Hydrogen Storage"
     lines: "Transmission Lines"
+    DC: "Transmission Links"
     ror: "Run of River"
     coal: "Coal"
+    sasol_coal: "Coal"
     nuclear: "Nuclear"
-    biomass: "Biomass"
+    biomass: "Bioenergy"
+    oil: "Oil"
+    co2: "CO2"
+    Li ion: "Li-ion"
+
+plotting_sector:
+  map:
+    figsize: [10, 10]
+    boundaries: [14, 34, -35, -22] #[x1,x2,y1,y2]
+    p_nom:
+      bus_size_factor: 5.e+4
+      linewidth_factor: 3.e+3 #1.e+3 # 1.e+3  #3.e+3
+  costs_max: 1000
+  costs_threshold: 0.2
+  energy_max: 20000
+  energy_min: -20000
+  energy_threshold: 15
+  vre_techs:
+  - onwind
+  - offwind-ac
+  - offwind-dc
+  - solar
+  - ror
+  renewable_storage_techs:
+  - PHS
+  - hydro
+  conv_techs:
+  - OCGT
+  - CCGT
+  - Nuclear
+  - Coal
+  storage_techs:
+  - hydro+PHS
+  - battery
+  - H2
+  load_carriers:
+  - AC load
+  AC_carriers:
+  - AC line
+  - AC transformer
+  link_carriers:
+  - DC line
+  - Converter AC-DC
+  heat_links:
+  - heat pump
+  - resistive heater
+  - CHP heat
+  - CHP electric
+  - gas boiler
+  - central heat pump
+  - central resistive heater
+  - central CHP heat
+  - central CHP electric
+  - central gas boiler
+  heat_generators:
+  - gas boiler
+  - central gas boiler
+  - solar thermal collector
+  - central solar thermal collector
+  tech_colors:
+    SMR CC: "darkblue"
+    gas for industry CC: "brown"
+    process emissions CC: "gray"
+    CO2 pipeline: "gray"
+    onwind: "dodgerblue"
+    onshore wind: "#235ebc"
+    offwind: "#6895dd"
+    offshore wind: "#6895dd"
+    offwind-ac: "c"
+    offshore wind (AC): "#6895dd"
+    offwind-dc: "#74c6f2"
+    offshore wind (DC): "#74c6f2"
+    wave: '#004444'
+    hydro: '#3B5323'
+    hydro reservoir: '#3B5323'
+    ror: '#78AB46'
+    run of river: '#78AB46'
+    hydroelectricity: 'blue'
+    solar: "orange"
+    solar PV: "#f9d002"
+    solar thermal: coral
+    solar rooftop: '#ffef60'
+    OCGT: wheat
+    OCGT marginal: sandybrown
+    OCGT-heat: '#ee8340'
+    gas boiler: '#ee8340'
+    gas boilers: '#ee8340'
+    gas boiler marginal: '#ee8340'
+    gas-to-power/heat: 'brown'
+    gas: brown
+    natural gas: brown
+    SMR: '#4F4F2F'
+    oil: '#B5A642'
+    oil boiler: '#B5A677'
+    lines: k
+    transmission lines: k
+    H2: m
+    H2 liquefaction: m
+    hydrogen storage: m
+    battery: slategray
+    battery storage: slategray
+    home battery: '#614700'
+    home battery storage: '#614700'
+    Nuclear: r
+    Nuclear marginal: r
+    nuclear: r
+    uranium: r
+    Coal: k
+    coal: k
+    Coal marginal: k
+    Lignite: grey
+    lignite: grey
+    Lignite marginal: grey
+    CCGT: '#ee8340'
+    CCGT marginal: '#ee8340'
+    heat pumps: '#76EE00'
+    heat pump: '#76EE00'
+    air heat pump: '#76EE00'
+    ground heat pump: '#40AA00'
+    power-to-heat: 'red'
+    resistive heater: pink
+    Sabatier: '#FF1493'
+    methanation: '#FF1493'
+    power-to-gas: 'purple'
+    power-to-liquid: 'darkgreen'
+    helmeth: '#7D0552'
+    DAC: 'deeppink'
+    co2 stored: '#123456'
+    CO2 sequestration: '#123456'
+    CC: k
+    co2: '#123456'
+    co2 vent: '#654321'
+    agriculture heat: '#D07A7A'
+    agriculture machinery oil: '#1e1e1e'
+    agriculture machinery oil emissions: '#111111'
+    agriculture electricity: '#222222'
+    solid biomass for industry co2 from atmosphere: '#654321'
+    solid biomass for industry co2 to stored: '#654321'
+    solid biomass for industry CC: '#654321'
+    gas for industry co2 to atmosphere: '#654321'
+    gas for industry co2 to stored: '#654321'
+    Fischer-Tropsch: '#44DD33'
+    kerosene for aviation: '#44BB11'
+    naphtha for industry: '#44FF55'
+    land transport oil: '#44DD33'
+    water tanks: '#BBBBBB'
+    hot water storage: '#BBBBBB'
+    hot water charging: '#BBBBBB'
+    hot water discharging: '#999999'
+    # CO2 pipeline: '#999999'
+    CHP: r
+    CHP heat: r
+    CHP electric: r
+    PHS: g
+    Ambient: k
+    Electric load: b
+    Heat load: r
+    heat: darkred
+    rural heat: '#880000'
+    central heat: '#b22222'
+    decentral heat: '#800000'
+    low-temperature heat for industry: '#991111'
+    process heat: '#FF3333'
+    heat demand: darkred
+    electric demand: k
+    Li ion: grey
+    district heating: '#CC4E5C'
+    retrofitting: purple
+    building retrofitting: purple
+    BEV charger: grey
+    V2G: grey
+    land transport EV: grey
+    electricity: k
+    gas for industry: '#333333'
+    solid biomass for industry: '#555555'
+    industry electricity: '#222222'
+    industry new electricity: '#222222'
+    process emissions to stored: '#444444'
+    process emissions to atmosphere: '#888888'
+    process emissions: '#222222'
+    oil emissions: '#666666'
+    industry oil emissions: '#666666'
+    land transport oil emissions: '#666666'
+    land transport fuel cell: '#AAAAAA'
+    biogas: '#800000'
+    solid biomass: '#DAA520'
+    today: '#D2691E'
+    shipping: '#6495ED'
+    shipping oil: "#6495ED"
+    shipping oil emissions: "#6495ED"
+    electricity distribution grid: 'y'
+    solid biomass transport: green
+    H2 for industry: "#222222"
+    H2 for shipping: "#6495ED"
+    biomass EOP: "green"
+  nice_names:
+    OCGT: "OCGT/CCGT" #"Open-Cycle Gas"
+    sasol_gas: "OCGT/CCGT"
+    CCGT: "OCGT/CCGT" #"Combined-Cycle Gas"
+    ccgt_steam: "OCGT/CCGT"
+    ocgt_diesel: "OCGT/CCGT"
+    offwind-ac: "Offshore Wind (AC)"
+    offwind-dc: "Offshore Wind (DC)"
+    wind: "Wind"
+    solar_pv: "Solar PV"
+    solar_csp: "Solar CSP"
+    phs: "Pumped Hydro Storage"
+    hydro: "Hydro"
+    hydro+PHS: "Hydro+PS"
+    hydro_import: "Hydro"
+    battery: "Battery"
+    H2: "Hydrogen Storage"
+    lines: "Transmission Lines"
+    DC: "Transmission Links"
+    ror: "Run of River"
+    coal: "Coal"
+    sasol_coal: "Coal"
+    nuclear: "Nuclear"
+    biomass: "Bioenergy"
+    oil: "Oil"
+    co2: "CO2"
+    Li ion: "Li-ion"
+
+  fhg_colors_15:
+  - '#179c7d'
+  - '#005b7f'
+  - '#a6bbc8'
+  - '#008598'
+  - '#39c1cd'
+  - '#99bdcc'
+  - '#1c3f52'
+  - '#d3c7ae'
+  - '#fdb913'
+  - '#bb0056'
+  - '#7c154d'
+  - '#b2d235'
+  - '#f58220'
+  - '#337c99'
+  - '#669db2'

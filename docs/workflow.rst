@@ -71,7 +71,7 @@ Customize the scenario excel input file
 
 In order to make the PyPSA-ZA model accessible to a larger audience than just developers and users 
 who do not know Python, the input data into PyPSA-ZA is entered via an Excel spreadsheet to aid with 
-scenario configuration. The excel spreadsheet `model_file.xlsx` is located in the root directory and consists of 
+scenario configuration. The excel spreadsheet `config/model_file.xlsx` is located in the root directory and consists of 
 the following sheets:
 
 ``model_setup``: Summarizes the capacity from eskom and non-eskom generators, new build limits, projections on annual demand, 
