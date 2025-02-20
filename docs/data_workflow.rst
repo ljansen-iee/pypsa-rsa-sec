@@ -98,7 +98,7 @@ Currently the pre-build file is calculated for South Africa using the `SAPAD` an
 
 * **SystemEnergy2009_22.csv** is the electricity demand profile provided from the Eskom data portal. This pre-downloaded data on electricity demand is placed in `data/bundle/SystemEnergy2009_22.csv`.
 
-* **eskom_pu_profiles.csv** is Eskom hourly pu profiles for all wind and solar generators in South Africa. The `use_eskom_wind_solar` flag in the configuration file allows to switch-on this option. This data is located in `data/eskom_pu_profiles.csv`
+* **eskom_pu_profiles.csv** is Eskom hourly pu profiles for all wind and solar generators in South Africa. The `use_eskom_wind_solar` flag in the configuration file allows to switch-on this option. This data is located in `data/bundle/eskom_pu_profiles.csv`
 
 * **num_lines.xlsx** is the number of high voltage transmission lines (i.e 275kV, 400kV and 765kV) between neighbouring regions. 
 
