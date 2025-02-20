@@ -15,9 +15,11 @@ docs/build/*
 benchmarks/*
 logs/*
 gurobi.log
-data/archive*
 
-scripts/archive/
+data/archive
+notebooks/playgrounds
+scripts/archive
+config/archive
 
 notebooks/network_playground.ipynb
 ~$model_file.xlsx
