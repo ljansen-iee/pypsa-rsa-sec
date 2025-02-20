@@ -1,9 +1,12 @@
 import logging
 import pandas as pd
+import numpy as np
 import pypsa
+from numpy import isnan
 
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense, expand_series, get_activity_mask
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense, expand_series, get_activity_mask, nominal_attrs
 from pypsa.optimization.common import reindex
+from linopy.expressions import merge
 
 from _helpers import get_investment_periods
 # from add_electricity import load_costs, update_transmission_costs
@@ -245,10 +248,140 @@ def define_reserve_margin(n, sns, model_file, model_setup, snakemake):
             n.model.add_constraints(lhs, ">=", rhs, name = f"reserve_margin_{y}")    
 
 
+# def add_co2_sequestration_limit(n, sns, limit=1):
+#     co2_stores = n.stores.loc[n.stores.carrier == "co2 stored"].index
+
+#     if co2_stores.empty or ("Store", "e") not in n.variables.index:
+#         return
+
+#     vars_final_co2_stored = get_var(n, "Store", "e").loc[sns[-1], co2_stores]
+
+#     lhs = linexpr((1, vars_final_co2_stored)).sum()
+#     rhs = (limit * 1e6) 
+
+#     name = "co2_sequestration_limit"
+#     define_constraints(
+#         n, lhs, "<=", rhs, "GlobalConstraint", "mu", axes=pd.Index([name]), spec=name
+#     )
+
+
+def add_co2_sequestration_limit(n, limit=200):
+    """
+    Add a global constraint on the amount of Mt CO2 that can be stored.
+    """
+
+    if not n.investment_periods.empty:
+        periods = n.investment_periods
+        names = pd.Index([f"co2_sequestration_limit-{period}" for period in periods])
+    else:
+        periods = [np.nan]
+        names = pd.Index(["co2_sequestration_limit"])
+
+    n.madd(
+        "GlobalConstraint",
+        names,
+        sense=">=",
+        constant=-limit * 1e6,
+        type="operational_limit",
+        carrier_attribute="co2 stored",
+        investment_period=periods,
+    )
+
+def add_battery_constraints(n):
+    """
+    Add constraint ensuring that charger = discharger, i.e.
+    1 * charger_size - efficiency * discharger_size = 0
+    """
+    if not n.links.p_nom_extendable.any():
+        return
+
+    discharger_bool = n.links.index.str.contains("battery discharger")
+    charger_bool = n.links.index.str.contains("battery charger")
+
+    dischargers_ext = n.links[discharger_bool].query("p_nom_extendable").index
+    chargers_ext = n.links[charger_bool].query("p_nom_extendable").index
+
+    eff = n.links.efficiency[dischargers_ext].values
+    lhs = (
+        n.model["Link-p_nom"].loc[chargers_ext]
+        - n.model["Link-p_nom"].loc[dischargers_ext] * eff
+    )
+
+    n.model.add_constraints(lhs == 0, name="Link-charger_ratio")
+
+
+
+def custom_define_tech_capacity_expansion_limit(n, sns):
+    """
+    Quickfix for pypsa.optimization.global_constraints.define_tech_capacity_expansion_limit.
+    Defines per-carrier but NOT per-bus capacity expansion limits.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+    """
+    m = n.model
+    glcs = n.global_constraints.loc[
+        lambda df: df.type == "tech_capacity_expansion_limit"
+    ]
+
+    for name, (carrier, sense, constant, period) in glcs[
+            ["carrier_attribute", "sense", "constant", "investment_period"]
+        ].iterrows():
+        period = None if isnan(period) else int(period)
+        sign = "=" if sense == "==" else sense
+        busdim = f"Bus-{carrier}-{period}"
+        lhs_per_bus = []
+
+        for c, attr in nominal_attrs.items():
+            var = f"{c}-{attr}"
+            dim = f"{c}-ext"
+            df = n.df(c)
+
+            if "carrier" not in df:
+                continue
+
+            ext_i = (
+                n.get_extendable_i(c)
+                .intersection(df.index[df.carrier == carrier])
+                .rename(dim)
+            )
+            if period is not None:
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
+
+            if ext_i.empty:
+                continue
+
+            bus = "bus0" if c in n.branch_components else "bus"
+            busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
+            expr = m[var].loc[ext_i].groupby(busmap).sum()
+            lhs_per_bus.append(expr)
+
+        if not lhs_per_bus:
+            continue
+
+        lhs_per_bus = merge(lhs_per_bus)
+
+        if "bus" in glcs.columns:
+            print("Capacity expansion per bus does't work!")
+
+        lhs = lhs_per_bus.sum(busdim)
+
+
+        n.model.add_constraints(
+            lhs, sign, constant, name=f"GlobalConstraint-{name}"
+        )
+
 if __name__ == "__main__":
 
     test_file = '../networks/elec_val-LC-UNC_1-supply_redz.nc'
-    model_file = pd.ExcelFile("../data/model_file.xlsx")
+    model_file = pd.ExcelFile("../config/model_file.xlsx")
     model_setup = (
         pd.read_excel(
             model_file, 

@@ -172,7 +172,7 @@ def load_network(import_name=None, custom_components=None):
     custom_components : dict
         Dictionary listing custom components.
         For using ``snakemake.config["override_components"]``
-        in ``config.yaml`` define:
+        in ``config/config.yaml`` define:
 
         .. code:: yaml
 
@@ -188,7 +188,8 @@ def load_network(import_name=None, custom_components=None):
     pypsa.Network
     """
     import pypsa
-    from pypsa.descriptors import Dict
+    #from pypsa.descriptors import Dict
+    from pypsa.definitions.structures import Dict
 
     override_components = None
     override_component_attrs = None
@@ -538,7 +539,8 @@ def mock_snakemake(rulename, **wildcards):
     import os
 
     import snakemake as sm
-    from pypsa.descriptors import Dict
+    #from pypsa.descriptors import Dict
+    from pypsa.definitions.structures import Dict
     from snakemake.script import Snakemake
 
     script_dir = Path(__file__).parent.resolve()
@@ -695,7 +697,15 @@ def map_component_parameters(gens, first_year):
 
 def remove_leap_day(df):
     return df[~((df.index.month == 2) & (df.index.day == 29))]
-    
+
+def set_year_of_datetime_index(df, year):
+    df.index = pd.to_datetime({
+        "year": year, 
+        "month": df.index.month, 
+        "day": df.index.day, 
+        "hour": df.index.hour})
+    return df
+
 def clean_pu_profiles(n):
     pu_index = n.generators_t.p_max_pu.columns.intersection(n.generators_t.p_min_pu.columns)
     for carrier in n.generators_t.p_min_pu.columns:
