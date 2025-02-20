@@ -1,4 +1,4 @@
-configfile: "config/config.collect.yaml"
+configfile: "config/config.yaml"
 
 from os.path import normpath, exists, isdir
 
@@ -57,7 +57,7 @@ if config['enable']['build_cutout']:
 
 if not config['hydro_inflow']['disable']:
     rule build_inflow_per_country:
-        input: EIA_hydro_gen="data/EIA_hydro_generation_2011_2014.csv"
+        input: EIA_hydro_gen="data/bundle/EIA_hydro_generation_2011_2014.csv"
         output: "resources/hydro_inflow.csv"
         benchmark: "benchmarks/inflow_per_country"
         threads: 1
@@ -133,7 +133,7 @@ rule add_electricity:
         load='data/bundle/SystemEnergy2009_22.csv',
         #onwind_area='resources/area_wind_{regions}_{resarea}.csv',
         #solar_area='resources/area_solar_{regions}_{resarea}.csv',
-        eskom_profiles="data/eskom_pu_profiles.csv",
+        eskom_profiles="data/bundle/eskom_pu_profiles.csv",
         model_file="config/model_file.xlsx",
         #fixed_generators_eaf="data/Eskom EAF data.xlsx",
     output: "networks/elec_{model_file}_{regions}_{resarea}.nc",
@@ -146,7 +146,7 @@ rule prepare_and_solve_network:
         model_file="config/model_file.xlsx",
     output:"networks/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
     log:"logs/prepare_and_solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.log",
-    benchmark:"benchmarks/prepare_and_solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
+    benchmark:"benchmarks/prepare_and_solve_network/solved_{model_file}_{regions}_{resarea}_l{ll}_{opts}",
     script:
         "scripts/prepare_and_solve_network.py"
 
@@ -156,7 +156,7 @@ rule solve_network_dispatch:
         model_file="config/model_file.xlsx",
     output:"networks/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}.nc",
     log:"logs/solve_network_dispatch:/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}.log",
-    benchmark:"benchmarks/solve_network_dispatch:/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}.nc",
+    benchmark:"benchmarks/solve_network_dispatch:/dispatch_{model_file}_{regions}_{resarea}_l{ll}_{opts}_{years}",
     script:
         "scripts/solve_network_dispatch.py"
 
@@ -192,15 +192,15 @@ rule plot_network:
 rule build_population_layouts:
     input:
         supply_regions='data/bundle/rsa_supply_regions.gpkg',
-        urban_percent="data/bundle/sector/urban_percent.csv",
+        urban_percent="data/bundle/urban_percent.csv",
         cutout="cutouts/RSA-2020_22-era5.nc",
     output:
         pop_layout_total="resources/population_shares/pop_layout_total_{regions}.nc",
         pop_layout_urban="resources/population_shares/pop_layout_urban_{regions}.nc",
         pop_layout_rural="resources/population_shares/pop_layout_rural_{regions}.nc",
         gdp_layout="resources/gdp_shares/gdp_layout_{regions}.nc",
-    benchmark:
-        "benchmarks/build_population_layouts_{regions}"
+    resources:
+        mem_mb=16000,
     threads: 8
     script:
         "scripts/build_population_layouts.py"
@@ -216,12 +216,12 @@ rule build_clustered_population_layouts:
     output:
         clustered_pop_layout="resources/population_shares/pop_layout_base_{regions}.csv",
         clustered_gdp_layout="resources/gdp_shares/gdp_layout_base_{regions}.csv",
-    benchmark:
-        "benchmarks/build_clustered_population_layouts/{regions}"
+    resources:
+        mem_mb=10000,
     script:
         "scripts/build_clustered_population_layouts.py"
 
-rule build_heat_demand:
+rule build_daily_heat_demand:
     input:
         pop_layout_total="resources/population_shares/pop_layout_total_{regions}.nc",
         pop_layout_urban="resources/population_shares/pop_layout_urban_{regions}.nc",
@@ -233,9 +233,9 @@ rule build_heat_demand:
         heat_demand_rural="resources/demand/heat/heat_demand_rural_{regions}.nc",
         heat_demand_total="resources/demand/heat/heat_demand_total_{regions}.nc",
     benchmark:
-        "benchmarks/build_heat_demand/{regions}"
+        "benchmarks/build_daily_heat_demand/{regions}"
     script:
-        "scripts/build_heat_demand.py"
+        "scripts/build_daily_heat_demand.py"
 
 rule build_solar_thermal_profiles:
     input:
@@ -292,13 +292,11 @@ rule build_cop_profiles:
     script:
         "scripts/build_cop_profiles.py"
 
-
-
 rule build_energy_totals_from_UCT:
     input: 
         model_file="config/model_file.xlsx",
-        energy_demands_jetip = "data/bundle/demand/energy_demands_JETIP_from_UCT.csv", #https://www.climatecommission.org.za/south-africas-jet-ip
-        energy_totals_template = "data/bundle/demand/energy_totals_template.csv",
+        energy_demands_jetip = "data/bundle/demands/energy_demands_JETIP_from_UCT.csv", #https://www.climatecommission.org.za/south-africas-jet-ip
+        energy_totals_template = "data/bundle/demands/energy_totals_template.csv",
     output: 
         energy_totals="resources/demand/energy_totals_{model_file}.csv", 
         industry_totals="resources/demand/industry_totals_{model_file}.csv",
@@ -308,7 +306,6 @@ rule build_energy_totals_from_UCT:
     script:
         "scripts/build_energy_totals_from_UCT.py"
 
-        
 rule build_heat_data:
     input:
         model_file="config/model_file.xlsx",
@@ -320,7 +317,7 @@ rule build_heat_data:
         cop_air_total="resources/cops/cop_air_total_{regions}.nc",
         solar_thermal_total="resources/demand/heat/solar_thermal_total_{regions}.nc",
         heat_demand_total="resources/demand/heat/heat_demand_total_{regions}.nc",
-        heat_profile="data/bundle/sector/heat_load_profile_BDEW.csv",
+        heat_profile="data/bundle/heat_load_profile_BDEW.csv",
     output:
         nodal_energy_totals="resources/demand/heat/nodal_energy_heat_totals_{model_file}_{regions}.csv",
         heat_demand="resources/demand/heat/heat_demand_{model_file}_{regions}.csv",
@@ -339,9 +336,9 @@ rule build_transport_data:
         model_file="config/model_file.xlsx",
         network='networks/base_{model_file}_{regions}.nc',
         energy_totals="resources/demand/energy_totals_{model_file}.csv", 
-        traffic_data_KFZ="data/bundle/sector/emobility/KFZ__count",
-        traffic_data_Pkw="data/bundle/sector/emobility/Pkw__count",
-        transport_name="data/bundle/sector/transport_data.csv",
+        traffic_data_KFZ="data/bundle/traffic_data/KFZ__count",
+        traffic_data_Pkw="data/bundle/traffic_data/Pkw__count",
+        transport_name="data/bundle/transport_data.csv",
         clustered_pop_layout="resources/population_shares/pop_layout_base_{regions}.csv",
         temp_air_total="resources/temperatures/temp_air_total_{regions}.nc",
     output:
@@ -359,7 +356,7 @@ rule build_industrial_distribution_key:
         sector_options=config["sector"]
     input:
         supply_regions='data/bundle/rsa_supply_regions.gpkg',
-        industrial_database='data/bundle/sector/geospatial/industrial_database.csv',
+        industrial_database='data/bundle/geospatial/industrial_database.csv',
     output:
         industrial_distribution_key='resources/demand/industrial_distribution_key_{regions}.csv',
     log:"logs/build_industrial_distribution_key/industrial_distribution_key_{regions}.log",
@@ -371,10 +368,10 @@ rule build_industry_demand:
     params:
         sector_options=config["sector"]
     input:
-        industrial_database='data/bundle/sector/geospatial/industrial_database.csv',
+        industrial_database='data/bundle/geospatial/industrial_database.csv',
         industrial_distribution_key='resources/demand/industrial_distribution_key_{regions}.csv',
         industry_totals='resources/demand/industry_totals_{model_file}.csv',
-        alu_production="data/bundle/sector/AL_production.csv",
+        alu_production="data/bundle/AL_production.csv",
     output:
         industrial_energy_demand_per_node='resources/demand/industrial_energy_demand_per_node{model_file}_{regions}.csv',
     log:"logs/build_industry_demand/industry_demand_{model_file}_{regions}.log",
@@ -386,7 +383,7 @@ rule prepare_and_solve_sector_network:
     params:
         sector_options=config["sector"],
         cost_options=config["costs"],
-        costs_filepath="data/costs/"
+        costs_filepath="data/bundle/costs/"
     input:
         network="networks/elec_{model_file}_{regions}_{resarea}.nc",
         model_file="config/model_file.xlsx",
@@ -400,15 +397,15 @@ rule prepare_and_solve_sector_network:
         clustered_pop_layout="resources/population_shares/pop_layout_base_{regions}.csv",
         industrial_demand='resources/demand/industrial_energy_demand_per_node{model_file}_{regions}.csv',
         refinery_totals="resources/demand/refinery_totals_{model_file}.csv",
-        airports="data/bundle/sector/geospatial/airports.csv",
-        ports="data/bundle/sector/geospatial/ports.csv",
+        airports="data/bundle/geospatial/airports.csv",
+        ports="data/bundle/geospatial/ports.csv",
         heat_demand="resources/demand/heat/heat_demand_{model_file}_{regions}.csv",
         ashp_cop="resources/demand/heat/ashp_cop_{model_file}_{regions}.csv",
         gshp_cop="resources/demand/heat/gshp_cop_{model_file}_{regions}.csv",
         solar_thermal="resources/demand/heat/solar_thermal_{model_file}_{regions}.csv",
         district_heat_share="resources/demand/heat/district_heat_share_{model_file}_{regions}.csv",
-        biomass_transport_costs="data/bundle/sector/temp_hard_coded/biomass_transport_costs.csv",
-        export_ports="data/bundle/sector/geospatial/export_ports.csv"
+        biomass_transport_costs="data/bundle/biomass_transport_costs.csv",
+        export_ports="data/bundle/geospatial/export_ports.csv"
     output:"networks/solved_sector_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
     log:"logs/prepare_and_solve_network/solved_sector_{model_file}_{regions}_{resarea}_l{ll}_{opts}.log",
     benchmark:"benchmarks/prepare_and_solve_network/solved_sector_{model_file}_{regions}_{resarea}_l{ll}_{opts}.nc",
