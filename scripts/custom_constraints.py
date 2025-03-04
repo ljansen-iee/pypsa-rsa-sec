@@ -277,7 +277,7 @@ def add_co2_sequestration_limit(n, limit=200):
         periods = [np.nan]
         names = pd.Index(["co2_sequestration_limit"])
 
-    n.madd(
+    n.add(
         "GlobalConstraint",
         names,
         sense=">=",

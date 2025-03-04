@@ -299,7 +299,7 @@ def attach_load(n, annual_demand):
             bus="RSA",
             p_set=demand)
     else:
-        n.madd("Load", list(n.buses.index),
+        n.add("Load", list(n.buses.index),
             bus = list(n.buses.index),
             p_set = load_disaggregate(demand, normed(n.buses[snakemake.config["electricity"]["demand_disaggregation"]])))
 
@@ -920,7 +920,7 @@ def convert_lines_to_links(n):
         lines = n.lines.copy()
         lines.index = lines.index + "-" + str(y)
         
-        n.madd(
+        n.add(
             "Link",
             lines.index,
             bus0 = lines.bus0,
@@ -1015,7 +1015,7 @@ def add_nice_carrier_names(n, config):
 def add_load_shedding(n, cost):
     n.add("Carrier", "load_shedding")
     buses_i = n.buses.index
-    n.madd(
+    n.add(
         "Generator",
         buses_i,
         "_load_shedding",

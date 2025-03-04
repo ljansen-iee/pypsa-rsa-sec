@@ -66,10 +66,10 @@ def add_carrier_buses(n, carrier, nodes=None):
 
     n.add("Carrier", carrier, co2_emissions=costs.at[carrier, "CO2 intensity"])
 
-    n.madd("Bus", nodes, location=location, carrier=carrier)
+    n.add("Bus", nodes, location=location, carrier=carrier)
 
     # capital cost could be corrected to e.g. 0.2 Currency/kWh * annuity and O&M
-    n.madd(
+    n.add(
         "Store",
         nodes + " Store",
         bus=nodes,
@@ -78,7 +78,7 @@ def add_carrier_buses(n, carrier, nodes=None):
         carrier=carrier,
     )
 
-    n.madd(
+    n.add(
         "Generator",
         nodes,
         bus=nodes,
@@ -118,7 +118,7 @@ def add_generation(n, costs):
     for generator, carrier in conventionals.items():
         add_carrier_buses(n, carrier)
         carrier_nodes = vars(spatial)[carrier].nodes
-        n.madd(
+        n.add(
             "Link",
             nodes + " " + generator,
             bus0=carrier_nodes,
@@ -163,7 +163,7 @@ def add_oil(n, costs):
     # n.carriers.loc["oil", "co2_emissions"] = 0
     # print("co2_emissions of oil set to 0 for testing")  # TODO add logger.info
 
-    n.madd(
+    n.add(
         "Bus",
         spatial.oil.nodes,
         location=spatial.oil.locations,
@@ -179,7 +179,7 @@ def add_oil(n, costs):
     # e_initial = (snakemake.config["fossil_reserves"]).get("ctl_oil", 0) * 1e6
     # e_initial = e_initial / len(spatial.oil.nodes)
     
-    n.madd(
+    n.add(
         "Store",
         [oil_bus + " Store" for oil_bus in spatial.oil.nodes],
         bus=spatial.oil.nodes,
@@ -189,7 +189,7 @@ def add_oil(n, costs):
         capital_cost = 0.02
     )
 
-    n.madd(
+    n.add(
         "Generator",
         spatial.oil.nodes,
         bus=spatial.oil.nodes,
@@ -231,7 +231,7 @@ def H2_liquid_fossil_conversions(n, costs):
     Function to add conversions between H2 and liquid fossil
     Carrier and bus is added in add_oil, which later on might be switched to add_generation
     """
-    n.madd(
+    n.add(
         "Bus",
         nodes + " Fischer-Tropsch",
         location=nodes,
@@ -240,7 +240,7 @@ def H2_liquid_fossil_conversions(n, costs):
         y=n.buses.loc[list(nodes)].y.values,
     )
     
-    n.madd(
+    n.add(
         "Link",
         nodes + " Fischer-Tropsch",
         bus0=spatial.h2.nodes,
@@ -259,7 +259,7 @@ def H2_liquid_fossil_conversions(n, costs):
         lifetime=costs.at["Fischer-Tropsch", "lifetime"],
     )
     
-    n.madd(
+    n.add(
         "Store",
         nodes + " Fischer-Tropsch Store",
         bus=nodes + " Fischer-Tropsch",
@@ -269,7 +269,7 @@ def H2_liquid_fossil_conversions(n, costs):
         capital_cost = 0.02
     )
     
-    n.madd(
+    n.add(
         "Link",
         nodes + " Fischer-Tropsch -> oil",
         bus0=nodes + " Fischer-Tropsch",
@@ -287,19 +287,19 @@ def add_hydrogen_and_desalination(n, costs):
     n.add("Carrier", "freshwater", unit="H20_m3")
     n.add("Carrier", "seawater", unit="H20_m3")
 
-    n.madd(
+    n.add(
         "Bus",
         spatial.freshwater.nodes,
         carrier="freshwater",
     )
     
-    n.madd(
+    n.add(
         "Bus",
         spatial.seawater.nodes,
         carrier="seawater",
     )
 
-    n.madd(
+    n.add(
         "Generator",
         spatial.coastal_nodes + " seawater",
         bus=spatial.seawater.nodes,
@@ -307,7 +307,7 @@ def add_hydrogen_and_desalination(n, costs):
         carrier="seawater",
     )
     
-    n.madd(
+    n.add(
         "Link",
         spatial.coastal_nodes + " desalination",
         bus0=spatial.seawater.nodes,
@@ -320,7 +320,7 @@ def add_hydrogen_and_desalination(n, costs):
         capital_cost=costs.at["seawater desalination", "fixed"],
         )
     
-    n.madd(
+    n.add(
         "Bus",
         spatial.h2.nodes,
         location=nodes,
@@ -329,7 +329,7 @@ def add_hydrogen_and_desalination(n, costs):
         y=n.buses.loc[list(nodes)].y.values,
     )
 
-    n.madd(
+    n.add(
         "Link",
         nodes + " H2 Electrolysis",
         bus0=nodes,
@@ -344,7 +344,7 @@ def add_hydrogen_and_desalination(n, costs):
         lifetime=costs.at["electrolysis PEMEC", "lifetime"],
     )
 
-    n.madd(
+    n.add(
         "Link",
         nodes + " H2 Fuel Cell",
         bus0=spatial.h2.nodes,
@@ -366,7 +366,7 @@ def add_hydrogen_and_desalination(n, costs):
     ]
     nodes_overground = cavern_nodes.index.symmetric_difference(nodes)
 
-    n.madd(
+    n.add(
         "Store",
         nodes_overground + " H2 Store",
         bus=nodes_overground + " H2",
@@ -433,7 +433,7 @@ def add_hydrogen_and_desalination(n, costs):
 
     # TODO Add efficiency losses
     if snakemake.config["sector"]["hydrogen"]["network"]:
-        n.madd(
+        n.add(
             "Link",
             h2_links.index,
             bus0=h2_links.bus0.values + " H2",
@@ -452,13 +452,13 @@ def add_ammonia(n, costs):
     
     n.add("Carrier", "N2", unit="t_N2")
     
-    n.madd(
+    n.add(
         "Bus",
         spatial.nitrogen.nodes,
         carrier="N2",
     )
     # NB: electricity input for ASU is included in the Haber-Bosch electricity-input.
-    n.madd(
+    n.add(
         "Generator",
         spatial.nitrogen.nodes,
         bus=spatial.nitrogen.nodes,
@@ -469,13 +469,13 @@ def add_ammonia(n, costs):
     
     n.add("Carrier", "NH3")
     
-    n.madd(
+    n.add(
         "Bus",
         spatial.ammonia.nodes,
         carrier="NH3",
     )
     
-    n.madd(
+    n.add(
         "Link",
         nodes + " Haber-Bosch",
         bus0=nodes,
@@ -496,7 +496,7 @@ def add_ammonia(n, costs):
     )
     
     # Ammonia Storage
-    n.madd(
+    n.add(
         "Store",
         spatial.ammonia.nodes,
         bus=spatial.ammonia.nodes,
@@ -594,18 +594,18 @@ def add_biomass(n, costs):
     n.add("Carrier", "biogas")
     n.add("Carrier", "solid biomass")
 
-    n.madd(
+    n.add(
         "Bus", spatial.gas.biogas, location=spatial.biomass.locations, carrier="biogas"
     )
 
-    n.madd(
+    n.add(
         "Bus",
         spatial.biomass.nodes,
         location=spatial.biomass.locations,
         carrier="solid biomass",
     )
 
-    n.madd(
+    n.add(
         "Store",
         spatial.gas.biogas,
         bus=spatial.gas.biogas,
@@ -615,7 +615,7 @@ def add_biomass(n, costs):
         e_initial=biogas_pot_spatial,
     )
 
-    n.madd(
+    n.add(
         "Store",
         spatial.biomass.nodes,
         bus=spatial.biomass.nodes,
@@ -626,7 +626,7 @@ def add_biomass(n, costs):
     )
 
     biomass_gen = "biomass EOP"
-    n.madd(
+    n.add(
         "Link",
         nodes + " biomass EOP",
         bus0=spatial.biomass.nodes,
@@ -643,7 +643,7 @@ def add_biomass(n, costs):
         # efficiency2=costs.at["solid biomass", "CO2 intensity"],
         lifetime=costs.at[biomass_gen, "lifetime"],
     )
-    n.madd(
+    n.add(
         "Link",
         spatial.gas.biogas_to_gas,
         bus0=spatial.gas.biogas,
@@ -693,7 +693,7 @@ def add_biomass(n, costs):
             axis=1
         )
 
-        n.madd(
+        n.add(
             "Link",
             biomass_transport.index,
             bus0=biomass_transport.bus0 + " solid biomass",
@@ -705,7 +705,7 @@ def add_biomass(n, costs):
             carrier="solid biomass transport",
         )
 
-    # n.madd(
+    # n.add(
     #         "Link",
     #         urban_central + " urban central solid biomass CHP",
     #         bus0=spatial.biomass.df.loc[urban_central, "nodes"].values,
@@ -727,7 +727,7 @@ def add_biomass(n, costs):
 
         key = "central solid biomass CHP"
 
-        n.madd(
+        n.add(
             "Link",
             urban_central + " urban central solid biomass CHP",
             bus0=spatial.biomass.df.loc[urban_central, "nodes"].values,
@@ -743,7 +743,7 @@ def add_biomass(n, costs):
         )
 
         if snakemake.config["sector"]["cc"]:
-            n.madd(
+            n.add(
                 "Link",
                 urban_central + " urban central solid biomass CHP CC",
                 bus0=spatial.biomass.df.loc[urban_central, "nodes"].values,
@@ -805,7 +805,7 @@ def add_co2(n, costs):
     )
 
     # this tracks CO2 stored, e.g. underground
-    n.madd(
+    n.add(
         "Bus",
         spatial.co2.nodes,
         location=spatial.co2.locations,
@@ -821,7 +821,7 @@ def add_co2(n, costs):
     n.buses[n.buses.carrier == "co2 stored"].y = co2_stored_y.values
     """
 
-    n.madd(
+    n.add(
         "Link",
         spatial.co2.vents,
         bus0=spatial.co2.nodes,
@@ -846,7 +846,7 @@ def add_co2(n, costs):
     # )
     # capital_cost = cost_onshore + cost_submarine
 
-    # n.madd(
+    # n.add(
     #     "Link",
     #     co2_links.index,
     #     bus0=co2_links.bus0.values + " co2 stored",
@@ -859,7 +859,7 @@ def add_co2(n, costs):
     #     lifetime=costs.at["CO2 pipeline", "lifetime"],
     # )
 
-    n.madd(
+    n.add(
         "Store",
         spatial.co2.nodes,
         e_nom_extendable=True,
@@ -879,7 +879,7 @@ def add_storage(n, costs):
     
     n.add("Carrier", "battery")
 
-    n.madd(
+    n.add(
         "Bus",
         nodes + " battery",
         location=nodes,
@@ -888,7 +888,7 @@ def add_storage(n, costs):
         y=n.buses.loc[list(nodes)].y.values,
     )
 
-    n.madd(
+    n.add(
         "Store",
         nodes + " battery",
         bus=nodes + " battery",
@@ -899,7 +899,7 @@ def add_storage(n, costs):
         lifetime=costs.at["battery storage", "lifetime"],
     )
 
-    n.madd(
+    n.add(
         "Link",
         nodes + " battery charger",
         bus0=nodes,
@@ -911,7 +911,7 @@ def add_storage(n, costs):
         lifetime=costs.at["battery inverter", "lifetime"],
     )
 
-    n.madd(
+    n.add(
         "Link",
         nodes + " battery discharger",
         bus0=nodes + " battery",
@@ -926,7 +926,7 @@ def add_storage(n, costs):
 def h2_hc_conversions(n, costs):
     "function to add the conversion technologies between H2 and hydrocarbons"
     if options["methanation"]:
-        n.madd(
+        n.add(
             "Link",
             spatial.nodes,
             suffix=" Sabatier",
@@ -945,7 +945,7 @@ def h2_hc_conversions(n, costs):
         )
 
     if options["helmeth"]:
-        n.madd(
+        n.add(
             "Link",
             spatial.nodes,
             suffix=" helmeth",
@@ -962,7 +962,7 @@ def h2_hc_conversions(n, costs):
         )
 
     if options["SMR"]:
-        n.madd(
+        n.add(
             "Link",
             spatial.nodes,
             suffix=" SMR CC",
@@ -979,7 +979,7 @@ def h2_hc_conversions(n, costs):
             lifetime=costs.at["SMR CC", "lifetime"],
         )
 
-        n.madd(
+        n.add(
             "Link",
             nodes + " SMR",
             bus0=spatial.gas.nodes,
@@ -1046,10 +1046,10 @@ def add_shipping(n, costs):
     ports = ports.groupby(ports.index).sum()
 
     if options["shipping_hydrogen_liquefaction"]:
-        n.madd("Bus", nodes, suffix=" H2 liquid", carrier="H2 liquid", location=nodes)
+        n.add("Bus", nodes, suffix=" H2 liquid", carrier="H2 liquid", location=nodes)
 
         # link the H2 supply to liquified H2
-        n.madd(
+        n.add(
             "Link",
             nodes + " H2 liquefaction",
             bus0=spatial.h2.nodes,
@@ -1065,7 +1065,7 @@ def add_shipping(n, costs):
     else:
         shipping_bus = spatial.h2.nodes
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" H2 for shipping",
@@ -1081,7 +1081,7 @@ def add_shipping(n, costs):
             lambda frac: shipping_oil_share * frac * navigation_demand * 1e6 / 8760
         )
 
-        n.madd(
+        n.add(
             "Load",
             nodes,
             suffix=" shipping oil",
@@ -1101,10 +1101,10 @@ def add_shipping(n, costs):
         )
 
     if "oil" not in n.buses.carrier.unique():
-        n.madd("Bus", spatial.oil.nodes, location=spatial.oil.locations, carrier="oil")
+        n.add("Bus", spatial.oil.nodes, location=spatial.oil.locations, carrier="oil")
     if "oil" not in n.stores.carrier.unique():
         # could correct to e.g. 0.001 Currency/kWh * annuity and O&M
-        n.madd(
+        n.add(
             "Store",
             [oil_bus + " Store" for oil_bus in spatial.oil.nodes],
             bus=spatial.oil.nodes,
@@ -1114,7 +1114,7 @@ def add_shipping(n, costs):
         )
 
     if "oil" not in n.generators.carrier.unique():
-        n.madd(
+        n.add(
             "Generator",
             spatial.oil.nodes,
             bus=spatial.oil.nodes,
@@ -1183,7 +1183,7 @@ def add_aviation(n, cost):
     # airports = airports.fillna(0)
 
     airports = airports.groupby(airports.index).sum()
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" kerosene for aviation",
@@ -1208,7 +1208,7 @@ def add_rail_transport(n, costs):
     p_set_elec = nodal_energy_totals.loc[nodes, "electricity rail"]
     p_set_oil = (nodal_energy_totals.loc[nodes, "total rail"]) - p_set_elec
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" rail transport oil",
@@ -1217,7 +1217,7 @@ def add_rail_transport(n, costs):
         p_set=p_set_oil * 1e6 / 8760,
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" rail transport electricity",
@@ -1240,7 +1240,7 @@ def add_industry(n, costs):
 
     # Add carrier Biomass
 
-    n.madd(
+    n.add(
         "Bus",
         spatial.biomass.industry,
         location=spatial.biomass.locations,
@@ -1257,7 +1257,7 @@ def add_industry(n, costs):
     else:
         p_set = industrial_demand["solid biomass"].sum() / 8760
 
-    n.madd(
+    n.add(
         "Load",
         spatial.biomass.industry,
         bus=spatial.biomass.industry,
@@ -1265,7 +1265,7 @@ def add_industry(n, costs):
         p_set=p_set,
     )
 
-    n.madd(
+    n.add(
         "Link",
         spatial.biomass.industry,
         bus0=spatial.biomass.nodes,
@@ -1275,7 +1275,7 @@ def add_industry(n, costs):
         efficiency=1.0,
     )
     if snakemake.config["sector"]["cc"]:
-        n.madd(
+        n.add(
             "Link",
             spatial.biomass.industry_cc,
             bus0=spatial.biomass.nodes,
@@ -1306,7 +1306,7 @@ def add_industry(n, costs):
     # industrial_demand.set_index("TWh/a (MtCO2/a)", inplace=True)
 
     # n.add("Bus", "gas for industry", location="ZA", carrier="gas for industry")
-    n.madd(
+    n.add(
         "Bus",
         spatial.gas.industry,
         location=spatial.gas.locations,
@@ -1320,7 +1320,7 @@ def add_industry(n, costs):
     else:
         spatial_gas_demand = gas_demand.sum()
 
-    n.madd(
+    n.add(
         "Load",
         spatial.gas.industry,
         bus=spatial.gas.industry,
@@ -1328,7 +1328,7 @@ def add_industry(n, costs):
         p_set=spatial_gas_demand,
     )
 
-    n.madd(
+    n.add(
         "Link",
         spatial.gas.industry,
         # bus0="ZA gas",
@@ -1342,7 +1342,7 @@ def add_industry(n, costs):
         efficiency2=costs.at["gas", "CO2 intensity"],
     )
     if snakemake.config["sector"]["cc"]:
-        n.madd(
+        n.add(
             "Link",
             spatial.gas.industry_cc,
             # suffix=" gas for industry CC",
@@ -1365,7 +1365,7 @@ def add_industry(n, costs):
 
     #################################################### CARRIER = HYDROGEN
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" H2 for industry",
@@ -1375,7 +1375,7 @@ def add_industry(n, costs):
     )
 
     # CARRIER = LIQUID HYDROCARBONS
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" naphtha for industry",
@@ -1423,7 +1423,7 @@ def add_industry(n, costs):
 
     ########################################################### CARIER = HEAT
     # TODO simplify bus expression
-    # n.madd(
+    # n.add(
     #     "Load",
     #     nodes,
     #     suffix=" low-temperature heat for industry",
@@ -1455,7 +1455,7 @@ def add_industry(n, costs):
         lambda frac: frac / 8760
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" industry electricity",
@@ -1468,7 +1468,7 @@ def add_industry(n, costs):
 
     # this should be process emissions fossil+feedstock
     # then need load on atmosphere for feedstock emissions that are currently going to atmosphere via Link Fischer-Tropsch demand
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" process emissions",
@@ -1493,7 +1493,7 @@ def add_industry(n, costs):
 
     # assume enough local waste heat for CC
     if snakemake.config["sector"]["cc"]:
-        n.madd(
+        n.add(
             "Link",
             spatial.co2.locations,
             suffix=" process emissions CC",
@@ -1537,7 +1537,7 @@ def add_land_transport(n, costs):
     if electric_share > 0:
         n.add("Carrier", "Li ion")
 
-        n.madd(
+        n.add(
             "Bus",
             nodes,
             location=nodes,
@@ -1557,7 +1557,7 @@ def add_land_transport(n, costs):
             / 3
         )
 
-        n.madd(
+        n.add(
             "Load",
             nodes,
             suffix=" land transport EV",
@@ -1583,7 +1583,7 @@ def add_land_transport(n, costs):
             * electric_share
         )
 
-        n.madd(
+        n.add(
             "Link",
             nodes,
             suffix=" BEV charger",
@@ -1600,7 +1600,7 @@ def add_land_transport(n, costs):
         )
 
     if electric_share > 0 and options["v2g"]:
-        n.madd(
+        n.add(
             "Link",
             nodes,
             suffix=" V2G",
@@ -1620,7 +1620,7 @@ def add_land_transport(n, costs):
             * electric_share
         )
 
-        n.madd(
+        n.add(
             "Store",
             nodes,
             suffix=" battery storage",
@@ -1633,7 +1633,7 @@ def add_land_transport(n, costs):
         )
 
     if fuel_cell_share > 0:
-        n.madd(
+        n.add(
             "Load",
             nodes,
             suffix=" land transport fuel cell",
@@ -1644,11 +1644,11 @@ def add_land_transport(n, costs):
 
     if ice_share > 0:
         if "oil" not in n.buses.carrier.unique():
-            n.madd(
+            n.add(
                 "Bus", spatial.oil.nodes, location=spatial.oil.locations, carrier="oil"
             )
 
-        n.madd(
+        n.add(
             "Load",
             nodes,
             suffix=" land transport oil",
@@ -1740,7 +1740,7 @@ def add_heat(n, costs):
 
         n.add("Carrier", name + " heat")
 
-        n.madd(
+        n.add(
             "Bus",
             nodes[name] + " {} heat".format(name),
             location=nodes[name],
@@ -1780,7 +1780,7 @@ def add_heat(n, costs):
             )
 
         if options["add_useful_heat_demands"]:
-            n.madd(
+            n.add(
                 "Load",
                 nodes[name],
                 suffix=f" {name} heat",
@@ -1804,7 +1804,7 @@ def add_heat(n, costs):
         cop = {"air": ashp_cop, "ground": gshp_cop}
         efficiency = cop[heat_pump_type][nodes[name]]
 
-        n.madd(
+        n.add(
             "Link",
             nodes[name],
             suffix=f" {name} {heat_pump_type} heat pump",
@@ -1821,14 +1821,14 @@ def add_heat(n, costs):
         if options["tes"]:
             n.add("Carrier", name + " water tanks")
 
-            n.madd(
+            n.add(
                 "Bus",
                 nodes[name] + f" {name} water tanks",
                 location=nodes[name],
                 carrier=name + " water tanks",
             )
 
-            n.madd(
+            n.add(
                 "Link",
                 nodes[name] + f" {name} water tanks charger",
                 bus0=nodes[name] + f" {name} heat",
@@ -1838,7 +1838,7 @@ def add_heat(n, costs):
                 p_nom_extendable=True,
             )
 
-            n.madd(
+            n.add(
                 "Link",
                 nodes[name] + f" {name} water tanks discharger",
                 bus0=nodes[name] + f" {name} water tanks",
@@ -1862,7 +1862,7 @@ def add_heat(n, costs):
                 costs.at[name_type + " water tank storage", "fixed"] / 0.00117 / 40
             )
 
-            n.madd(
+            n.add(
                 "Store",
                 nodes[name] + f" {name} water tanks",
                 bus=nodes[name] + f" {name} water tanks",
@@ -1877,7 +1877,7 @@ def add_heat(n, costs):
         if options["boilers"]:
             key = f"{name_type} resistive heater"
 
-            n.madd(
+            n.add(
                 "Link",
                 nodes[name] + f" {name} resistive heater",
                 bus0=nodes[name],
@@ -1891,7 +1891,7 @@ def add_heat(n, costs):
 
             key = f"{name_type} gas boiler"
 
-            n.madd(
+            n.add(
                 "Link",
                 nodes[name] + f" {name} gas boiler",
                 p_nom_extendable=True,
@@ -1908,7 +1908,7 @@ def add_heat(n, costs):
         if options["solar_thermal"]:
             n.add("Carrier", name + " solar thermal")
 
-            n.madd(
+            n.add(
                 "Generator",
                 nodes[name],
                 suffix=f" {name} solar thermal collector",
@@ -1922,7 +1922,7 @@ def add_heat(n, costs):
 
         if options["chp"] and name == "urban central":
             # add gas CHP; biomass CHP is added in biomass section
-            n.madd(
+            n.add(
                 "Link",
                 nodes[name] + " urban central gas CHP",
                 bus0=spatial.gas.nodes,
@@ -1941,7 +1941,7 @@ def add_heat(n, costs):
                 lifetime=costs.at["central gas CHP", "lifetime"],
             )
             if snakemake.config["sector"]["cc"]:
-                n.madd(
+                n.add(
                     "Link",
                     nodes[name] + " urban central gas CHP CC",
                     # bus0="Africa gas",
@@ -1981,7 +1981,7 @@ def add_heat(n, costs):
                 )
 
         if options["chp"] and options["micro_chp"] and name != "urban central":
-            n.madd(
+            n.add(
                 "Link",
                 nodes[name] + f" {name} micro gas CHP",
                 p_nom_extendable=True,
@@ -2013,7 +2013,7 @@ def add_dac(n, costs):
     )
 
 
-    n.madd(
+    n.add(
         "Link",
         heat_buses.str.replace(" heat", " DAC"),
         bus0="co2 atmosphere",
@@ -2044,7 +2044,7 @@ def add_services(n, costs):
         * 1e6
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" services electricity",
@@ -2063,7 +2063,7 @@ def add_services(n, costs):
         * 1e6
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" services biomass",
@@ -2087,7 +2087,7 @@ def add_services(n, costs):
         profile_elec_today * energy_totals.loc[["ZA"], "services oil"].sum() * 1e6
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" services oil",
@@ -2110,7 +2110,7 @@ def add_services(n, costs):
         profile_elec_today * energy_totals.loc[["ZA"], "services gas"].sum() * 1e6
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" services gas",
@@ -2134,7 +2134,7 @@ def add_agriculture(n, costs):
     
     p_set_elec = nodal_energy_totals.loc[nodes, "agriculture electricity"] * 1e6
     
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" agriculture electricity",
@@ -2147,7 +2147,7 @@ def add_agriculture(n, costs):
     factor = (1 - p_set_elec.sum() / n.loads_t.p_set[loads_i].sum().sum())
     n.loads_t.p_set[loads_i] *= factor
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" agriculture oil",
@@ -2184,7 +2184,7 @@ def add_residential(n, costs):
         * 1e6
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" residential electricity",
@@ -2217,7 +2217,7 @@ def add_residential(n, costs):
         * 1e6
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" residential oil",
@@ -2234,7 +2234,7 @@ def add_residential(n, costs):
         carrier="oil emissions",
         p_set=-co2,
     )
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" residential biomass",
@@ -2243,7 +2243,7 @@ def add_residential(n, costs):
         p_set=p_set_biomass,
     )
 
-    n.madd(
+    n.add(
         "Load",
         nodes,
         suffix=" residential gas",
@@ -2309,9 +2309,9 @@ def add_export(n, export_regions_index, carrier, export_volume):
     )
 
     logger.info(f"Adding export links and loads for {carrier}")
-    n.madd(
+    n.add(
         "Link",
-        names=buses_ports.index + " export",
+        buses_ports.index + " export",
         bus0=buses_ports.index,
         bus1=carrier + " export bus",
         carrier=carrier + " export",
@@ -2398,7 +2398,7 @@ def add_waste_heat(n, costs):
             ) * options["use_fuel_cell_waste_heat"]
         
         # add a heat sink to compensate for potentially unusable waste heat
-        n.madd(
+        n.add(
             "Generator",
             urban_central + " unused waste heat",
             bus=urban_central + " urban central heat",

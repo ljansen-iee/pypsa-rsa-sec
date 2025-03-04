@@ -76,7 +76,7 @@ def _add_missing_carriers_from_costs(n, costs, carriers):
 
     emissions = costs.loc[("co2_emissions",missing_carriers),start_year]
     emissions.index = emissions.index.droplevel(0)
-    n.madd("Carrier", missing_carriers, co2_emissions=emissions)
+    n.add("Carrier", missing_carriers, co2_emissions=emissions)
 
 """
 List of IO functions
