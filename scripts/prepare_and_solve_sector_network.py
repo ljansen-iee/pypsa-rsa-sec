@@ -2628,8 +2628,8 @@ def solve_sector_network(n, sns):
 
     custom_define_tech_capacity_expansion_limit(n, sns)
 
-    solver_name = snakemake.config["solving"]["solver"].get("name")
-    solver_options = snakemake.config["solving"]["solver"].copy()
+    solver_name = snakemake.config["solving"]["solver"]["name"]
+    solver_options = snakemake.config["solving"]["solver_options"][solver_name]
     n.optimize.solve_model(solver_name=solver_name, solver_options=solver_options)
 
 if __name__ == "__main__":
@@ -2765,7 +2765,7 @@ if __name__ == "__main__":
     industrial_demand = pd.read_csv(
         snakemake.input.industrial_demand, index_col=[0,1], header=0
     ).xs(investment_year, level="year")  # * 1e6
-    cols_to_convert = industrial_demand.columns^{"process emissions"}
+    cols_to_convert = industrial_demand.columns.difference(["process emissions"])
     industrial_demand.loc[:,cols_to_convert] *= 1e6
     
     ##########################################################################

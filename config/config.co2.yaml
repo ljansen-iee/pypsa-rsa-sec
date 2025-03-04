@@ -417,28 +417,30 @@ solving:
     # max_iterations: 1
     # nhours: 10
   solver:
-    # name: xpress
-    # lpflags: 4
-    # crossover: 0
-    # bargapstop: 1.e-5
-    # barstart: -1 #use xpress warmstart
-    #baralg: 2 
-    #barstartweight: 1
-    # FeasibilityTol: 1.e-6
-    # LogToConsole: 0
-    # OutputFlag: 1
     name: gurobi
-    threads: 4
-    method: 2 # barrier
-    crossover: 0
-    BarConvTol: 1.e-7
-    OptimalityTol: 1.e-6
-    Seed: 123
-    AggFill: 0
-    PreDual: 0
-    GURO_PAR_BARDENSETHRESH: 200 #5000
-    BarHomogeneous: 1
-    BarOrder: 0
+  solver_options:
+    xpress:
+      lpflags: 4
+      crossover: 0
+      bargapstop: 1.e-5
+      barstart: -1 #use xpress warmstart
+      baralg: 2 
+      barstartweight: 1
+      FeasibilityTol: 1.e-6
+      LogToConsole: 0
+      OutputFlag: 1
+    gurobi:
+      threads: 8
+      method: 2 # barrier
+      crossover: 0
+      BarConvTol: 1.e-7
+      OptimalityTol: 1.e-6
+      Seed: 123
+      AggFill: 0
+      PreDual: 0
+      GURO_PAR_BARDENSETHRESH: 200
+      BarHomogeneous: 1
+      BarOrder: 0
 
 plotting:
   map:

@@ -821,7 +821,12 @@ def apply_default_attr(df, attrs):
     default_attrs = attrs[["default","type"]]
     default_list = default_attrs.loc[default_attrs.index.isin(params), "default"].dropna().index
 
-    conv_type = {'int': int, 'float': float, "static or series": float, "series": float}
+    conv_type = {"int": int, 
+                 "float": float, 
+                 "static or series": float, 
+                 "series": float, 
+                 "string":str}
+    
     for attr in default_list:
         default = default_attrs.loc[attr, "default"]
         df[attr] = df[attr].fillna(conv_type[default_attrs.loc[attr, "type"]](default))
