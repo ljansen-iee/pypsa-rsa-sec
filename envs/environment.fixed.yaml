@@ -1,4 +1,4 @@
-name: pypsa-rsa-sec-test
+name: pypsa-rsa-sec
 channels:
   - bioconda
   - conda-forge
