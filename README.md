@@ -1,86 +1,107 @@
-# PyPSA-ZA2: An open Optimisation Model of the South African Power System
-The accelerating development of open-source energy system modelling tools in recent years has now reached the point where it opens up a credible alternative approach to closed source exclusivity. An ever increasing number of studies are demonstrating that it is possible to produce analysis of a high quality using open-source energy system models, whilst building a wider participating modelling community. This builds confidence in results by enabling more effective peer review of work and therefore more effective feedback loops. It also builds a consistent stream of new talent entering the space to ensure that energy sector analytical capacity can be retained and steadily expanded.
+<!--
+SPDX-FileCopyrightText:  PyPSA-RSA-Sec, PyPSA-RSA, PyPSA-Eur and PyPSA-Earth Authors
 
-PyPSA-ZA2 is an open energy model of the South African power system that can be utilised for both operational studies and generation and transmission expansion planning studies. PyPSA-ZA2 is built upon the the open toolbox [PyPSA](https://pypsa.org/) for which [documentation is available](https://pypsa.readthedocs.io/en/latest/index.html). The model is currently under development and has been validated for the single node (`1-supply`), for more information on the capability of the model please see the associated [readthedocs](https://pypsa-za.readthedocs.io/en/latest/). 
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
-This model makes use of freely available and open data which encourages the open exchange of model data developments and eases the comparison of model results. It provides a full, automated software pipeline to assemble the load-flow-ready model from the original datasets, which enables easy replacement and improvement of the individual parts.
+# Development Status: **Under development**
+[![Documentation Status](https://readthedocs.org/projects/pypsa-earth/badge/?version=latest)](https://pypsa-rsa.readthedocs.io/en/latest/?badge=latest)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/bsdHkHwujt)
 
-PyPSA-ZA2 has been designed to conduct capacity expansion planning studies at differing spatial and temporal resolutions. 
-Three different spatial resolutions are available in the model:
+# PyPSA-RSA-Sec: A Sector-Coupled Open Optimisation Model of the South African Energy System
 
-- ``1-supply``: A single node for the entire South Africa.
-- ``11-supply``: 11 nodes based on the [Eskom Generation Connection Capacity Assessment of the 2024 Transmission Network (GCCA – 2024)](https://www.eskom.co.za/eskom-divisions/tx/gcca/) regions.
-- ``27-supply``: 27 nodes based on Eskom 27 supply regions as per the original PyPSA-ZA model.
+PyPSA-RSA-Sec is an open multi-sector, multi-regional, hourly-resolved model and dataset of the South African Energy System. This sector-coupled version is designed to conduct long-term expansion planning studies from 2030 to 2050 under different techno-economic scenario assumptions and policy targets. 
 
-![11-supply](docs/img/11-supply.png)
+[Fraunhofer IEE](https://www.iee.fraunhofer.de/) and [Stellenbosch University](https://grid.sun.ac.za/) leveraged and built on [PyPSA-RSA](https://github.com/MeridianEconomics/pypsa-rsa/tree/master), currently developed by [Meridian Economics](https://meridianeconomics.co.za/), and [PyPSA-Earth](https://github.com/pypsa-meets-earth/pypsa-earth), to set up the first customised, multi-regional, hourly-resolved energy model with sector-coupling and Power-to-X features for South Africa. The model was used to identify and evaluate promising pathways for the expansion and utilisation of renewable energy and Power-to-X (PtX) as part of the [PtX Allocation Study for South Africa](https://www.iee.fraunhofer.de/en/research_projects/search/2023/ptx-south-africa.html) supported by the [International PtX Hub](https://ptx-hub.org/), [Agora Industry](https://www.agora-industry.org/), [CSIR](https://www.csir.co.za/), and valuable feedback from various stakeholders. As part of the study, potential areas for renewable energies and electrolysis are identified and renewable generation profiles are generated using the [energyANTS](https://www.iee.fraunhofer.de/de/anwendungsfelder/energieprognosen/energiesystemsimulation.html) tool. The projection of sectoral final energy demands is based on the datasets published by the University of Cape Town as part of their modelling work for the [Just Energy Transition Investment Plan (JET-IP, 2022)](https://www.climatecommission.org.za/south-africas-jet-ip) study.
 
-![27-supply](docs/img/27-supply.png)
+![Overview](imgs/pypsa-rsa-sec_overview.png)
 
-PyPSA-ZA2 can be solved for a single year, or for multiple years, with perfect foresight.
-Multi-horizon capacity expansion planning is compuationally intensive, and therefore 
-the spatial resolution will typically need to be reduced to ``1-supply`` or ``11-supply``
-depending on the number of years modelled. By defualt PyPSA-ZA2 uses full chronology
-(8760h per year), but the number of snapshots can be reduced through the use of time-series 
-segmentation through the open-source [Time Series Aggregation Module]( https://github.com/FZJ-IEK3-VSA/tsam/). 
+### Features
 
-This project is currently maintained by [Meridian Economics]( https://meridianeconomics.co.za/). Previous versions were developed within the Energy Centre 
-at the [Council for Scientific and Industrial Research (CSIR)](https://www.csir.co.za/) as part of the [CoNDyNet project](https://fias.institute/en/projects/condynet/), which is supported by the 
-[German Federal Ministry of Education and Research](https://www.bmbf.de/bmbf/en/home/home_node.html) under grant no. 03SF0472C. 
+* Utilises open data, a workflow management system with central configuration files and the open source toolbox [PyPSA](https://pypsa.readthedocs.io/en/latest/index.html), facilitating collaboration, encouraging the open exchange of model data, and enabling the comparison of model results. Users can also employ the cleaned and processed data in their own custom optimisation models.
+* Designed to evaluate different, cost-optimised, long-term scenarios for the expansion and utilisation of renewable energy and Power-to-X.
+* Covers the energy and feedstock demands of transport, industry, residential, commercial, agriculture, and fuel export subsectors.
+* Spatial resolution is based on the 11 regions defined by the [GCCA 2024 Eskom Transmission Supply Regions](https://www.ntcsa.co.za/wp-content/uploads/2024/07/Generation-Connection-Capacity-Assessment-GCCA-2024.pdf).
+* Co-optimises dispatch and capacity expansion from 2030 to 2050 for generation, conversion, and storage technologies, as well as high-voltage transmission lines and new hydrogen pipelines.
+* By default, the model uses full chronology (8760 hours per year), but the number of snapshots can be reduced through time-series segmentation using the [Time series aggregation module (tsam)](https://github.com/FZJ-IEK3-VSA/tsam/).
+* Considers several flexibility options, such as battery storage, hydrogen steel tank storage, optimised electrolyser load, and demand-side management for electric vehicles.
+* Provides a new custom renewable potential area analysis along with aggregated wind and solar profiles for the 11 supply regions of the GCCA 2024.
+
+### Limitations and Future Research
+
+PyPSA-RSA-Sec is a simplified representation of the real world (like all computer models), and several aspects could be improved through ongoing research and collaborations:
+
+* Focuses on high-voltage line expansion with an N-1 approximation, excluding vertical measures such as substations and the provision of system services (e.g. reactive power, instantaneous reserve).  
+* Does not consider potential cooperation with neighbouring SADC countries via imports or exports.  
+* Uses simplified regionalisation of sectoral demands for residential, agriculture and road or rail transport demands (Gross Value Added, population) and todays electricity or static load profiles; sub-sector specific load patterns remain for future work.  
+* Excludes costs and infrastructure for domestic transport of methane, carbon dioxide, water, biomass, ammonia.  
+* Currently models only selected PtX exports (ammonia and Fischer-Tropsch fuels); modelling the ramp up of other higher-value products remain for future work (green hot briquetted iron (HBI), DRI, urea, methanol).
+* Aggregates certain PtX production aspects (e.g. Fischer-Tropsch yields multiple fuels but is treated as a single product).  
+* Does not address socio-economic factors (e.g. job effects).  
+
+PyPSA-RSA-Sec evolved from the December 2023 version of PyPSA-RSA and remains under active development, with plans to merge the versions as funding becomes available.
+
+# Installation
+
+### Prerequisites
+
+Software prerequisites for the model include [Git](https://github.com/git-guides/install-git) and either the mamba or conda Python package and environment manager. We recommend using mamba as a faster alternative to conda. To use mamba, download and install the [Miniforge distribution](https://github.com/conda-forge/miniforge) and follow the Miniforge README instructions to set up mamba. Alternatively, you can install and use the [conda-libmamba-solver](https://github.com/conda/conda-libmamba-solver).
+
+Hardware-wise, a single optimisation run performs well with 4-16 CPU threads. Solving a complete set of scenarios benefits from parallelisation and additional threads. RAM requirements vary based on the model's complexity. A multi-sector, 11-region capacity expansion planning model for one year with 8760 hours requires around 20 GB of RAM.
+
+### Steps
+
+1. **Clone the Git repository**:  `git clone git@github.com:ljansen-iee/pypsa-rsa-sec.git` 
+2. **Enter the project folder**: `cd pypsa-rsa-sec`
+3. **Set up the python environment**: 
+The python package requirements are listed in the `envs/environment.yaml` file. To set up the environment, run: `mamba env create -f envs/environment.yaml`. 
+1. **Install a solver**. PyPSA-RSA-Sec forms mathematical equations at its core, which need to be solved by a numerical solver to produce an optimised result. While open source solvers such as [HiGHS](https://highs.dev/) and [CBC](https://github.com/coin-or/Cbc) can handle smaller problems, a commercial solver is likely to be required to solve multi-sector, multi-regional capacity expansion models in a reasonable time. Suitable options include: 
+   * [Gurobi](https://www.gurobi.com/)
+   * [IBM CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio/cplex-optimizer)
+   * [FICO Xpress](https://www.fico.com/en/products/fico-xpress-optimization)
+   * [COPT](https://www.shanshu.ai/copt)
+   * [MindOpt](https://opt.alibabacloud.com/)
+2. **Download the input datasets**:
+A wide range of input data is required to run the model. Download both original and prepared datasets from [Owncloud](https://owncloud.fraunhofer.de/index.php/s/Al43g5c6Gp7EcJw). Download and copy the folders `pypsa-rsa-sec/data/bundle` and `pypsa-rsa-sec/cutouts`. By downloading, the user accepts the [licenses](#licenses) of the original sources. 
+
+# Usage
+  
+PyPSA-RSA-Sec is built upon the fundamental components in the [PyPSA library](https://pypsa.org/). It is recommended that you familiarising yourself with the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/index.html) before diving into this model. The electricity-sector model PyPSA-RSA is further documented here: [PyPSA-RSA documentation](https://pypsa-za.readthedocs.io/en/latest/). A two-part video series on using PyPSA and PyPSA-RSA is available at [this link](https://meridianeconomics.co.za/our-publications/pypsa-rsa-workshop1/). For questions or bug reports, please join the Discord channels or email in the section [Collaboration](#collaboration). 
+
+### Configuration
+
+PyPSA-RSA-Sec is designed for flexible configuration and can be run with Snakemake from the command line. The file `config/config.yaml` specifies the scenario matrix to be processed and sets global config parameters for the entire run. 
+
+To customise individual scenarios, edit the Excel file `config/model_file.xlsx`, where you can specify scenario wildcards and define important scenario-specific parameters for each scenario wildcard (scenario name). The entries in `config.yaml` and `model_file.xlsx` determine which scenarios are included, how they are set up, and which model options are activated.
+
+Advanced users may further refine or replace datasets (e.g. `data/bundle/geospatial/industrial_database.csv`) or create a separate `config.yaml` if needed.
+
+### Execution
+
+To run the whole model workflow, [snakemake<=7.32](https://snakemake.readthedocs.io/en/v7.32.3/) is used. 
+
+    (pypsa-rsa-sec) .../pypsa-rsa-sec$ snakemake solve_sector_scenario_matrix -j4
+ 
+For the execution on a HPC adjust the slurm cluster parameters in `config/config.cluster.yaml`. Then run the bash script:
+
+    (pypsa-rsa-sec) .../pypsa-rsa-sec$ bash run_slurm.sh
 
 
+# Collaboration
 
+Collaborations are welcome! Please do not hesitate to reachout for collaboration or feature ideas, questions or bug reports on one of the following channels:
 
-**NOTE**
-   
-  Credits to Jonas Hörsch and Joanne Calitz who developed the original [PyPSA-ZA model](https://arxiv.org/pdf/1710.11199.pdf), 
-  [Meridian Economics](http://meridianeconomics.co.za) who extended the PyPSA-ZA model.
-  PyPSA-ZA2 is relies on a number of functions from the [PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) and [PyPSA-Meets-Earth](https://github.com/pypsa-meets-earth/pypsa-earth).
+- Join the [PyPSA-RSA Discord Channel](https://discord.gg/bsdHkHwujt).
+- Contact the Fraunhofer IEE for bug reports or questions about the customized sector-coupled model PyPSA-RSA-Sec: [ptx-pathways@iee.fraunhofer.de](mailto:ptx-pathways@iee.fraunhofer.de).
+- You can submit a pull request directly if you already have some code changes.
+- For broader discussions and inspiration, join the [PyPSA-meets-Earth Discord community](https://discord.gg/AnuJBk23FU).
 
+# Developers
 
-<!---
-## Instructions
+The inital [PyPSA-ZA model](https://arxiv.org/pdf/1710.11199.pdf) was developed by Jonas Hörsch and Joanne Calitz in 2017 within the Energy Centre at the [Council for Scientific and Industrial Research (CSIR)](https://www.csir.co.za/) as part of the [CoNDyNet project](https://fias.institute/en/projects/condynet/), funded by the [German Federal Ministry of Education and Research](https://www.bmbf.de/bmbf/en/home/home_node.html) under grant no. 03SF0472C. [Meridian Economics](http://meridianeconomics.co.za) extended PyPSA-ZA, developed and currently maintains [PyPSA-RSA](https://github.com/MeridianEconomics/pypsa-rsa/tree/master). Fraunhofer IEE and Stellenbosch University built on PyPSA-RSA to develop the first  South African specific multi-regional sector-coupled expansion planning model PyPSA-RSA-Sec. 
+Credits and thanks go to the authors and the PyPSA community of [PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) and [PyPSA-Earth](https://github.com/pypsa-meets-earth/pypsa-earth), as the South African specific PyPSA models are largely based on the functions of these models. 
 
-To build and solve the model, a computer with about 20GB of memory with a strong
-interior-point solver supported by the modelling library
-[PYOMO](https://github.com/Pyomo/pyomo) like Gurobi or CPLEX are required.
+# Licenses
 
-We recommend as preparatory steps (the path before the `%` sign denotes the
-directory in which the commands following the `%` should be entered):
-
-1. cloning the repository using `git` (**to a directory without any spaces in the path**)
-   ```shell
-   /some/other/path % cd /some/path/without/spaces
-   /some/path/without/spaces % git clone https://github.com/FRESNA/pypsa-za.git
-   ```
-
-2. installing the necessary python dependencies using conda (from within the `pypsa-za` directory)
-   ```shell
-   .../pypsa-za % conda env create -f environment.yaml
-   .../pypsa-za % source activate pypsa-za  # or conda activate pypsa-za on windows
-   ```
-
-3. getting the separate [data bundle](https://vfs.fias.science/d/f204668ef2/files/?p=/pypsa-za-bundle.7z&dl=1) (see also [Data dependencies] below) and unpacking it in `data`
-   ```shell
-   .../data % wget "https://vfs.fias.science/d/f204668ef2/files/?dl=1&p=/pypsa-za-bundle.7z"
-   .../data % 7z x pypsa-za-bundle.7z
-   ```
-
-All results and scenario comparisons are reproduced using the workflow
-management system `snakemake`
-```shell
-.../pypsa-za % snakemake
-[... will take about a week on a recent computer with all scenarios ...]
-```
-
-`snakemake` will first compute several intermediate data files in the directory
-`resources`, then prepare unsolved networks in `networks`, solve them and save
-the resulting networks in `results/version-0.x/networks` and finally render the
-main plots into `results/version-0.5/plots`.
-
-Instead of computing all scenarios (defined by the product of all wildcards in
-the `scenario` config section), `snakemake` also allows to compute only a
-specific scenario like `csir-aggressive_redz_E_LC`:
-```shell
-.../pypsa-za % snakemake results/version-0.5/plots/network_csir-aggressive_redz_E_LC_p_nom
-```
---->
+PyPSA-RSA-Sec is released under several licenses. The source code of PyPSA-RSA-Sec is released under the license [AGPL-3.0-or-later](./licenses/AGPL-3.0-or-later.txt) license. Intermediate and result data files are released under the [CC-BY-4.0](./licenses/CC-BY-4.0.txt) license. In addition, different licenses and terms of use apply to the different input datasets. By downloading and using the data provided, the user of the model agrees to the licenses specified by the original sources. 
