@@ -1,0 +1,8 @@
+__default__:
+  partition: progress
+  walltime: 24:00:00   # walltime limit for each job
+  cpus_per_task: 8   # number of cores per job
+  mem_mb: 32000
+  exclude: gpu0.omnia.cluster,gpu1.omnia.cluster,gpu2.omnia.cluster
+  output: logs/{rule}/log-%j.out
+  error: logs/{rule}/errlog-%j.err

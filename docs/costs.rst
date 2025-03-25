@@ -7,7 +7,7 @@
 Cost Assumptions
 ##################
 
-The database of cost assumptions is stored in ``model_file.xlsx``.
+The database of cost assumptions is stored in ``config/model_file.xlsx``.
 
 It includes a sheet `costs` which specifies the cost assumptions for all included technologies for specific
 years from various sources, namely for
@@ -37,11 +37,11 @@ Based on the parameters above the ``marginal_cost`` and ``capital_cost`` of the 
 Modifying Cost Assumptions
 ==========================
 
-Some cost assumptions (e.g. marginal cost and capital cost) can be directly overwritten in the ``config.yaml`` (cf. Section  :ref:`costs_cf`  in :ref:`config`).
+Some cost assumptions (e.g. marginal cost and capital cost) can be directly overwritten in the ``config/config.yaml`` (cf. Section  :ref:`costs_cf`  in :ref:`config`).
 
-To change cost assumptions in more detail, modify cost assumptions directly in ``costs`` sheet of ``model_file.xlsx`` as this is not yet supported through the config file.
+To change cost assumptions in more detail, modify cost assumptions directly in ``costs`` sheet of ``config/model_file.xlsx`` as this is not yet supported through the config file.
 
-You can also build multiple different cost databases for different scenarios. Copy all costs in the ``costs`` sheet ``model_file.xlsx`` and paste them in an empty row 
+You can also build multiple different cost databases for different scenarios. Copy all costs in the ``costs`` sheet ``config/model_file.xlsx`` and paste them in an empty row 
 below the existing data and give the copied data a new scenario name (e.g. copy and paste costs to new rows and name the scenario "least_cost").
 
 

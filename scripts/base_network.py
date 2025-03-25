@@ -34,7 +34,7 @@ Relevant Settings
         type:
 
 .. seealso::
-    Documentation of the configuration file ``config.yaml`` at
+    Documentation of the configuration file ``config/config.yaml`` at
     :ref:`snapshots_cf`, :ref:`toplevel_cf`, :ref:`electricity_cf`, :ref:`load_cf`,
     :ref:`lines_cf`, :ref:`links_cf`, :ref:`transformers_cf`
 
@@ -107,7 +107,10 @@ def add_components_to_network(n, buses, lines, line_config):
     if snakemake.wildcards.regions != "1-supply":
         lines["type"] = line_config["type"][line_config["v_nom"]]
         lines = lines.rename(columns={line_config["s_rating"] + "_limit": "s_nom_min"})
-        lines = lines.assign(s_nom_extendable=True, type=line_config["type"][line_config["v_nom"]])
+        lines = lines.assign(
+            s_nom = lines["s_nom_min"],
+            s_nom_extendable=True, 
+            type=line_config["type"][line_config["v_nom"]])
         n.import_components_from_dataframe(lines, "Line")
 
 def get_years():
@@ -120,10 +123,11 @@ def get_years():
         .loc[snakemake.wildcards.model_file,"simulation_years"]
     )
 
-    if not isinstance(years, int):
+    if len(str(years)) > 4: #if not isinstance(years, int):
         years = list(map(int, re.split(",\s*", years))) 
         n.multi_invest = 1
     else:
+        
         n.multi_invest = 0 
 
     return years
@@ -134,8 +138,8 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "base_network", 
             **{
-                "model_file":"val-LC-UNC",
-                "regions":"1-supply",
+                "model_file":"Existing-2023",
+                "regions":"11-supply",
             }
         )
     line_config = snakemake.config["lines"]
@@ -152,4 +156,3 @@ if __name__ == "__main__":
     add_components_to_network(n, buses, lines, line_config)
     
     n.export_to_netcdf(snakemake.output[0])
-

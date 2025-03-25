@@ -35,7 +35,7 @@ Relevant settings
             clip_p_max_pu:
             resource:
 .. seealso::
-    Documentation of the configuration file ``config.yaml`` at
+    Documentation of the configuration file ``config/config.yaml`` at
     :ref:`snapshots_cf`, :ref:`atlite_cf`, :ref:`renewable_cf`
 Inputs
 ------
@@ -168,8 +168,8 @@ if __name__ == "__main__":
         from _helpers import mock_snakemake
 
         #snakemake = mock_snakemake("build_renewable_profiles", technology="onwind")
-        snakemake = mock_snakemake('build_renewable_profiles',technology='solar', 
-                    **{'regions':'1-supply',
+        snakemake = mock_snakemake('build_renewable_profiles',technology='wind', 
+                    **{'regions':'11-supply',
                     'resarea':'redz'})
     configure_logging(snakemake)
     pgb.streams.wrap_stderr()

@@ -78,7 +78,7 @@ The dataset is used to restrict renewable energy expansion to the strategic tran
 Economical
 ------------------------------------
 
-* **costs.csv** spreadsheet in `model_file.xlsx` file which contains the default costs of the technologies along with their typical lifetime and efficiency values. The dataset is intended to give a starting point for running the model while user specific adjustments may be made. 
+* **costs.csv** spreadsheet in `config/model_file.xlsx` file which contains the default costs of the technologies along with their typical lifetime and efficiency values. The dataset is intended to give a starting point for running the model while user specific adjustments may be made. 
 
 * **ZAF15adjv4.tif** raster dataset of the population located in `data/bundle/South_Africa_100m_Population/ZAF15adjv4.tif`
 
@@ -98,7 +98,7 @@ Currently the pre-build file is calculated for South Africa using the `SAPAD` an
 
 * **SystemEnergy2009_22.csv** is the electricity demand profile provided from the Eskom data portal. This pre-downloaded data on electricity demand is placed in `data/bundle/SystemEnergy2009_22.csv`.
 
-* **eskom_pu_profiles.csv** is Eskom hourly pu profiles for all wind and solar generators in South Africa. The `use_eskom_wind_solar` flag in the configuration file allows to switch-on this option. This data is located in `data/eskom_pu_profiles.csv`
+* **eskom_pu_profiles.csv** is Eskom hourly pu profiles for all wind and solar generators in South Africa. The `use_eskom_wind_solar` flag in the configuration file allows to switch-on this option. This data is located in `data/bundle/eskom_pu_profiles.csv`
 
 * **num_lines.xlsx** is the number of high voltage transmission lines (i.e 275kV, 400kV and 765kV) between neighbouring regions. 
 
@@ -106,5 +106,5 @@ Currently the pre-build file is calculated for South Africa using the `SAPAD` an
 
 5. Scenario generation spreadsheet
 ===================================
-model_file="model_file.xlsx",
+model_file="config/model_file.xlsx",
 

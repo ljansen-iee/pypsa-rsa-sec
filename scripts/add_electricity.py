@@ -53,14 +53,14 @@ Relevant Settings
         length_factor:
 
 .. seealso::
-    Documentation of the configuration file ``config.yaml`` at :ref:`costs_cf`,
+    Documentation of the configuration file ``config/config.yaml`` at :ref:`costs_cf`,
     :ref:`electricity_cf`, :ref:`load_cf`, :ref:`renewable_cf`, :ref:`lines_cf`
 
 Inputs
 ------
-- ``model_file.xlsx``: The database to setup different scenarios based on cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
+- ``config/model_file.xlsx``: The database to setup different scenarios based on cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
 - ``data/Eskom EAF data.xlsx``: Hydropower plant store/discharge power capacities, energy storage capacity, and average hourly inflow by country.  Not currently used!
-- ``data/eskom_pu_profiles.csv``: alternative to capacities above; not currently used!
+- ``data/bundle/eskom_pu_profiles.csv``: alternative to capacities above; not currently used!
 - ``data/bundle/SystemEnergy2009_22.csv`` Hourly country load profiles produced by GEGIS
 - ``resources/regions_onshore.geojson``: confer :ref:`busregions`
 - ``resources/gadm_shapes.geojson``: confer :ref:`shapes`
@@ -91,6 +91,7 @@ It further adds extendable ``generators`` with **zero** capacity for
 - additional open- and combined-cycle gas turbines (if ``OCGT`` and/or ``CCGT`` is listed in the config setting ``electricity: extendable_carriers``)
 """
 
+import os
 import geopandas as gpd
 import logging
 logger = logging.getLogger(__name__)
@@ -170,7 +171,8 @@ def load_extendable_parameters(n, model_file, model_setup, snakemake):
     # correct units to MW and ZAR
     param_yr = param.columns.drop("unit")
 
-    param = convert_cost_units(param, snakemake.config["costs"]["USD_to_ZAR"], snakemake.config["costs"]["EUR_to_ZAR"])
+    param = convert_cost_units(param, snakemake.config["costs"]["USD_to_ZAR"], 
+                               snakemake.config["costs"]["EUR_to_ZAR"])
     
     full_param = pd.DataFrame(
         index = pd.MultiIndex.from_product(
@@ -297,7 +299,7 @@ def attach_load(n, annual_demand):
             bus="RSA",
             p_set=demand)
     else:
-        n.madd("Load", list(n.buses.index),
+        n.add("Load", list(n.buses.index),
             bus = list(n.buses.index),
             p_set = load_disaggregate(demand, normed(n.buses[snakemake.config["electricity"]["demand_disaggregation"]])))
 
@@ -382,7 +384,7 @@ def clip_pu_profiles(n, pu, gen_list, lower=0, upper=1):
 def proj_eaf_override(eaf_hrly, projections, snapshots, include = "_EAF", exclude = "extendable"):
     """
     Overrides the hourly EAF (Energy Availability Factor) values with projected EAF values, if these are defined
-    under the project_parameters tab in the model_file.xlsx. Existing generators have suffix _EAF and extendable generators
+    under the project_parameters tab in the config/model_file.xlsx. Existing generators have suffix _EAF and extendable generators
     have the suffix _extendable_EAF by convention.  
 
     Args:
@@ -392,7 +394,7 @@ def proj_eaf_override(eaf_hrly, projections, snapshots, include = "_EAF", exclud
     - include: A string used to filter the projections based on the index.
     - exclude: A string used to exclude certain projections based on the index.
 
-    Relevant model_file.xlsx settings:
+    Relevant config/model_file.xlsx settings:
         project_parameters: parameters with _EAF or _extendable_EAF suffix  
     
     """
@@ -414,12 +416,12 @@ def generate_eskom_re_profiles(n):
     """
     Generates Eskom renewable energy profiles for the network, based on the Eskom Data Portal information, found under
     https://www.eskom.co.za/dataportal/. Data is available from 2018 to 2023 for aggregate carriers (e.g. all solar_pv, biomass, hydro etc).
-    The user can specify whether to use this data under config.yaml. These Eskom profiles for biomass, hydro and hydro_import are used by default.
+    The user can specify whether to use this data under config/config.yaml. These Eskom profiles for biomass, hydro and hydro_import are used by default.
 
     Args:
     - n: The PyPSA network object.
 
-    Relevant config.yaml settings:
+    Relevant config/config.yaml settings:
     electricity:
         renewable_generators:
             carriers:
@@ -468,7 +470,7 @@ def generate_fixed_wind_solar_profiles_from_excel(n, gens, ref_data, snapshots, 
     - snapshots: A Series containing the snapshots.
     - pu_profiles: The DataFrame to store the pu profiles.
 
-    Relevant config.yaml settings:
+    Relevant config/config.yaml settings:
         enable:
             use_excel_wind_solar
     
@@ -655,6 +657,7 @@ def attach_fixed_generators(n, costs):
     gen_attrs = n.component_attrs["Generator"]
     config = snakemake.config["electricity"]
     fix_ref_years = config["conventional_generators"]["fix_ref_years"]
+    ext_years = get_investment_periods(n.snapshots, n.multi_invest)
     conv_carriers = config["conventional_generators"]["carriers"]
     re_carriers = config["renewable_generators"]["carriers"]
     carriers = conv_carriers + re_carriers
@@ -665,6 +668,12 @@ def attach_fixed_generators(n, costs):
     # load generators from model file
     gens = load_components_from_model_file(carriers, start_year, snakemake.config["electricity"])
     gens = map_components_to_buses(gens, snakemake.input.supply_regions, snakemake.config["crs"])
+    
+    if len(ext_years) == 1: 
+        gens = gens.loc[
+            (gens.loc[:, ["build_year", "lifetime"]].sum(axis=1) >= ext_years[0]) 
+            & (gens.loc[:, "build_year"] <= ext_years[0])]
+    
     pu_profiles = init_pu_profiles(gens, snapshots)
 
     unique_entries = set()
@@ -688,7 +697,8 @@ def attach_fixed_generators(n, costs):
     eskom_re_carriers = eskom_re_pu.columns
     for col in gens.query("carrier in @eskom_re_carriers").index:
         pu_profiles.loc["max", col] = eskom_re_pu[gens.loc[col, "carrier"]].values
-        pu_profiles.loc["min", col] = eskom_re_pu[gens.loc[col, "carrier"]].values
+        if snakemake.config["electricity"]["min_hourly_station_gen"]["enable_for_eskom_re"]:
+            pu_profiles.loc["min", col] = eskom_re_pu[gens.loc[col, "carrier"]].values
 
     # Wind and solar profiles if not using Eskom data portal
     if snakemake.config["enable"]["use_excel_wind_solar"][0]:
@@ -905,28 +915,29 @@ def convert_lines_to_links(n):
     years = get_investment_periods(n.snapshots, n.multi_invest)
 
     logger.info("Convert AC lines to DC links to perform multi-decade optimisation.")
-    extendable = False
-    p_nom = n.lines.s_nom
 
     for y in years:
-        n.madd(
+        lines = n.lines.copy()
+        lines.index = lines.index + "-" + str(y)
+        
+        n.add(
             "Link",
-            n.lines.index + "_" + str(y),
-            bus0 = n.lines.bus0,
-            bus1 = n.lines.bus1,
-            p_nom = p_nom,
-            p_nom_min = n.lines.s_nom,
-            p_min_pu = -1,
-            lifetime = 100,
-            efficiency = 1 - 0.03 * n.lines.length / 1000,
+            lines.index,
+            bus0 = lines.bus0,
+            bus1 = lines.bus1,
+            carrier="DC link",
+            p_nom = lines.s_nom if y == years[0] else 0,
+            #p_nom_min = lines.s_nom,
+            p_max_pu = lines.s_max_pu,
+            p_min_pu = -1 * lines.s_max_pu,
+            build_year = y,
+            #lifetime = 100,
+            efficiency = 1 - 0.03 * lines.length / 1000,
             marginal_cost = 0,
-            length = n.lines.length,
-            capital_cost = n.lines.capital_cost,
-            p_nom_extendable = extendable,
+            length = lines.length,
+            capital_cost = lines.capital_cost,
+            p_nom_extendable = False if y == years[0] else False,
         )
-        if y == years[0]:
-            extendable = True
-            p_nom = 0
 
     # Remove AC lines
     logger.info("Removing AC lines")
@@ -983,16 +994,16 @@ def convert_lines_to_links(n):
 #             n.generators.loc[com_i[_], "committable"] = False
             
         
-def add_nice_carrier_names(n):
+def add_nice_carrier_names(n, config):
 
     carrier_i = n.carriers.index
     nice_names = (
-        pd.Series(snakemake.config["plotting"]["nice_names"])
+        pd.Series(config["plotting"]["nice_names"])
         .reindex(carrier_i)
         .fillna(carrier_i.to_series().str.title())
     )
     n.carriers["nice_name"] = nice_names
-    colors = pd.Series(snakemake.config["plotting"]["tech_colors"]).reindex(carrier_i)
+    colors = pd.Series(config["plotting"]["tech_colors"]).reindex(carrier_i)
     if colors.isna().any():
         missing_i = list(colors.index[colors.isna()])
         logger.warning(
@@ -1004,7 +1015,7 @@ def add_nice_carrier_names(n):
 def add_load_shedding(n, cost):
     n.add("Carrier", "load_shedding")
     buses_i = n.buses.index
-    n.madd(
+    n.add(
         "Generator",
         buses_i,
         "_load_shedding",
@@ -1026,15 +1037,17 @@ def add_load_shedding(n, cost):
 
 if __name__ == "__main__":
     if "snakemake" not in globals():
-        from _helpers import mock_snakemake
+        from _helpers import mock_snakemake, sets_path_to_root
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
         snakemake = mock_snakemake(
             "add_electricity", 
             **{
-                "model_file":"val-LC-UNC",
-                "regions":"1-supply",
-                "resarea":"redz",
+                "model_file":"NZ-2040",
+                "regions":"11-supply",
+                "resarea":"corridors",
             }
         )
+        sets_path_to_root("pypsa-rsa-sec")
     #configure_logging(snakemake, skip_handlers=False)
     logging.basicConfig(
         level=logging.INFO,
@@ -1098,7 +1111,7 @@ if __name__ == "__main__":
     _add_missing_carriers_from_costs(n, param, n.generators.carrier.unique())
     _add_missing_carriers_from_costs(n, param, n.storage_units.carrier.unique())
 
-    add_nice_carrier_names(n)
+    add_nice_carrier_names(n, snakemake.config)
 
     logging.info("Exporting network.")
     if n.multi_invest:

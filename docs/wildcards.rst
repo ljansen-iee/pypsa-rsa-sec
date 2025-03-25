@@ -36,7 +36,7 @@ The ``{model_file}`` wildcard
 =============================
 
 The ``{model_file}`` wildcard specifies the technology cost assumptions to use from the input spreadsheet.  
-Cost assumptions in model_file.xlsx
+Cost assumptions in config/model_file.xlsx
 
 .. csv-table::
    :header-rows: 1

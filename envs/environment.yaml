@@ -2,48 +2,44 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-name: pypsa-za2
+name: pypsa-rsa-sec
 
 channels:
 - conda-forge
 - bioconda
-- gurobi
 dependencies:
-- python>=3.8
+- python>3.9
 - pip
-- mamba   # esp for windows build
+- mamba
 
-- pypsa>=0.21.3
-# - atlite>=0.2.4  # until https://github.com/PyPSA/atlite/issues/244 is not merged
+- pypsa>=0.33
+- atlite>=0.2.9
+- linopy
+
 - dask
-- powerplantmatching>=0.5.7
-- earth-osm>=0.1.0
-- atlite
-
-  # Dependencies of the workflow itself
-- xlrd
-- openpyxl
-- seaborn
-- snakemake-minimal
-- memory_profiler
+- xlrd=2.0.1
+- openpyxl!=3.1.1
+- snakemake-minimal<8.0
 - ruamel.yaml<=0.17.26
 - pytables
 - lxml
 - numpy
-- pandas
-- geopandas>=0.11.0
+- pandas>=2.1
+- geopandas<1.0
+- xarray>=2023.11.0
 - fiona!=1.8.22
 - xarray
+- rioxarray
 - netcdf4
 - networkx
 - scipy
-- pydoe2
 - shapely>=2
 - pre-commit
 - pyomo
 - matplotlib<=3.5.2
 - reverse-geocode
-- country_converter
+- proj
+- pyproj
 
   # Keep in conda environment when calling ipython
 - ipython
@@ -54,32 +50,30 @@ dependencies:
   # GIS dependencies:
 - cartopy
 - descartes
-- rasterio!=1.2.10
+- rasterio<1.4
 - rioxarray
 
  # Plotting
-- geoviews
-- hvplot
+- plotly
+- python-kaleido
+#- geoviews
+#- hvplot
 - graphviz
-- contextily
-- graphviz
+#- contextily
 
   # PyPSA-Eur-Sec Dependencies
 - geopy
 - tqdm
 - pytz
-- country_converter
-
-  # Cloud download
-# - googledrivedownloader  # Commented until https://github.com/ndrplz/google-drive-downloader/pull/28 is merged: PR installed using pip
 
 # Default solver for tests (required for CI)
 - glpk
-- ipopt<3.13.3
-- gurobi
+#- ipopt<3.13.3
+#- gurobi
 
 - pip:
-  - git+https://github.com/davide-f/google-drive-downloader@master  # google drive with fix for virus scan
-  - git+https://github.com/FRESNA/vresutils@master  # until new pip release > 0.3.1 (strictly)
+  - gurobipy
+  - highspy!=1.8.0 # No conda channel for arm macos
   - tsam>=1.1.0
-  - chaospy  # lastest version only available on pip
+#  - git+https://github.com/davide-f/google-drive-downloader@master  # google drive with fix for virus scan
+  - git+https://github.com/FRESNA/vresutils@master  # until new pip release > 0.3.1 (strictly)

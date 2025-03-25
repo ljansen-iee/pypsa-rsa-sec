@@ -16,6 +16,10 @@ benchmarks/*
 logs/*
 gurobi.log
 
-data/bundle/*
+data/archive
+notebooks/playgrounds
+scripts/archive
+config/archive
+
 notebooks/network_playground.ipynb
 ~$model_file.xlsx

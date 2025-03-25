@@ -29,13 +29,13 @@ Relevant Settings
         max_hours:
 
 .. seealso::
-    Documentation of the configuration file ``config.yaml`` at
+    Documentation of the configuration file ``config/config.yaml`` at
     :ref:`costs_cf`, :ref:`electricity_cf`
 
 Inputs
 ------
 
-- ``data/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
+- ``data/bundle/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
 - ``networks/elec_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
 
 Outputs
@@ -58,7 +58,6 @@ import re
 import numpy as np
 import pandas as pd
 import pypsa
-from pypsa.linopt import get_var, write_objective, define_constraints, linexpr
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense, expand_series
 from pypsa.optimization.common import reindex
 
@@ -77,7 +76,7 @@ logger = logging.getLogger(__name__)
     Build limit constraints
 ********************************************************************************
 """
-def set_extendable_limits_global(n):
+def set_extendable_limits_global(n, model_file, model_setup):
     ext_years = n.investment_periods if n.multi_invest else [n.snapshots[0].year]
     sense = {"max": "<=", "min": ">="}
     ignore = {"max": "unc", "min": 0}
@@ -113,7 +112,7 @@ def set_extendable_limits_global(n):
             n.add("GlobalConstraint", **constraint)
 
 
-def set_extendable_limits_per_bus(n):
+def set_extendable_limits_per_bus(n, model_file, model_setup, regions):
     ext_years = n.investment_periods if n.multi_invest else [n.snapshots[0].year]
     ignore = {"max": "unc", "min": 0}
 
@@ -122,7 +121,7 @@ def set_extendable_limits_per_bus(n):
             model_file,
             sheet_name=f'extendable_{lim}_build',
             index_col=[0, 1, 3, 2, 4],
-        ).loc[(model_setup["extendable_build_limits"], snakemake.wildcards.regions, slice(None)), ext_years]
+        ).loc[(model_setup["extendable_build_limits"], regions, slice(None)), ext_years]
         for lim in ["max", "min"]
     }
 
@@ -138,7 +137,8 @@ def set_extendable_limits_per_bus(n):
         for idx in bus_limit.index:
             for y in ext_years:
                 if bus_limit.loc[idx, y] != ignore[lim]:
-                    n.buses.loc[idx[0],f"nom_{lim}_{idx[1]}_{y}"] = bus_limit.loc[idx, y]
+                    col = f"nom_{lim}_{idx[1]}_{y}" if n.multi_invest else f"nom_{lim}_{idx[1]}"
+                    n.buses.loc[idx[0],col] = bus_limit.loc[idx, y]
 
 
 """
@@ -246,6 +246,8 @@ def set_line_nom_max(n, s_nom_max_set=np.inf, p_nom_max_set=np.inf):
 def average_every_nhours(n, offset):
     logger.info(f"Resampling the network to {offset}")
     m = n.copy()#with_time=False)
+    m.multi_invest = n.multi_invest # TODO create issue in PyPSA repo
+     
     snapshots_unstacked = n.snapshots.get_level_values(1)
 
     snapshot_weightings = n.snapshot_weightings.copy().set_index(snapshots_unstacked).resample(offset).sum()
@@ -383,7 +385,7 @@ def solve_network(n, sns):
     ccgt_steam_constraints(n, sns, model_file, model_setup, snakemake)
     define_reserve_margin(n, sns, model_file, model_setup, snakemake)
 
-    solver_name = snakemake.config["solving"]["solver"].pop("name")
+    solver_name = snakemake.config["solving"]["solver"].get("name")
     solver_options = snakemake.config["solving"]["solver"].copy()
     n.optimize.solve_model(solver_name=solver_name, solver_options=solver_options)
 
@@ -393,11 +395,11 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             'prepare_and_solve_network', 
             **{
-                'model_file':'val-LC-UNC',
-                'regions':'1-supply',
-                'resarea':'redz',
-                'll':'copt',
-                'opts':'LC'
+                'model_file':'NZ-2030',
+                'regions':'11-supply',
+                'resarea':'corridors',
+                'll':'v1.2',
+                'opts':'Co2L',
             }
         )
     #configure_logging(snakemake)
@@ -448,9 +450,9 @@ if __name__ == "__main__":
     logging.info("Setting transmission constraints")
     Nyears = n.snapshot_weightings.objective.sum() / 8760.0        
     set_line_s_max_pu(n)
-    ll_type, factor = snakemake.wildcards.ll[0], snakemake.wildcards.ll[1:]
     param = load_extendable_parameters(n, model_file, model_setup, snakemake)
 
+    ll_type, factor = snakemake.wildcards.ll[0], snakemake.wildcards.ll[1:]
     #set_transmission_limit(n, ll_type, factor, costs, Nyears)
 
     set_line_nom_max(
@@ -458,13 +460,17 @@ if __name__ == "__main__":
         s_nom_max_set=snakemake.config["lines"].get("s_nom_max,", np.inf),
         p_nom_max_set=snakemake.config["links"].get("p_nom_max,", np.inf),
     )
+    
+    if snakemake.config["lines"]["convert_lines_to_links"]:
+        from add_electricity import convert_lines_to_links
+        convert_lines_to_links(n)
+        
     logging.info("Setting global and regional build limits")
     if snakemake.wildcards.regions != "1-supply": #covered under single bus limits
-        set_extendable_limits_global(n) 
-    set_extendable_limits_per_bus(n)
+        set_extendable_limits_global(n, model_file, model_setup) 
+    set_extendable_limits_per_bus(n, model_file, model_setup, snakemake.wildcards.regions)
 
     logging.info("Solving network")
     solve_network(n, n.snapshots)
     
     n.export_to_netcdf(snakemake.output[0])
-

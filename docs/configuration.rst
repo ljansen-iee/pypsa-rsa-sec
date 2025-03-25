@@ -9,9 +9,9 @@
 Configuration
 ##########################################
 
-PyPSA-ZA has several configuration options which are documented in this section and are collected in a ``config.yaml`` file located in the root directory. 
+PyPSA-ZA has several configuration options which are documented in this section and are collected in a ``config/config.yaml`` file located in the root directory. 
 Users should copy the provided default configuration (``config.default.yaml``) and amend their own modifications and assumptions in the user-specific 
-configuration file (``config.yaml``); confer installation instructions at :ref:`defaultconfig`.
+configuration file (``config/config.yaml``); confer installation instructions at :ref:`defaultconfig`.
 
 .. _toplevel_cf:
 
@@ -20,9 +20,9 @@ Top-level configuration
 
 PyPSA-ZA imports the configuration options originally developed in `PyPSA-Eur <https://pypsa-eur.readthedocs.io/en/latest/index.html>`_ and here reported and adapted.
 
-The options here described are collected in a ``config.yaml`` file located in the root directory.
+The options here described are collected in a ``config/config.yaml`` file located in the root directory.
 Users should copy the provided default configuration (``config.default.yaml``) and amend 
-their own modifications and assumptions in the user-specific configuration file (``config.yaml``); 
+their own modifications and assumptions in the user-specific configuration file (``config/config.yaml``); 
 confer installation instructions at :ref:`defaultconfig`.
 
 .. note::
@@ -78,7 +78,7 @@ An exemplary dependency graph (starting from the simplification rules) then look
 
 .. _snapshots_cf:
 
-``snapshots``- now specified in model_file.xlsx
+``snapshots``- now specified in config/model_file.xlsx
 ===============================================
 
 Specifies the temporal range to build an energy system model for as arguments to `pandas.date_range <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.date_range.html>`_
@@ -218,8 +218,8 @@ Define and specify the ``atlite.Cutout`` used for calculating renewable potentia
    :file: configtables/costs.csv
 
 .. note::
-    To change cost assumptions in more detail (i.e. other than ``marginal_cost`` and ``capital_cost``), consider modifying cost assumptions directly in ``data/costs.csv`` as this is not yet supported through the config file.
-    You can also build multiple different cost databases. Make a renamed copy of ``data/costs.csv`` (e.g. ``data/costs-optimistic.csv``) and set the variable ``COSTS=data/costs-optimistic.csv`` in the ``Snakefile``.
+    To change cost assumptions in more detail (i.e. other than ``marginal_cost`` and ``capital_cost``), consider modifying cost assumptions directly in ``data/bundle/costs.csv`` as this is not yet supported through the config file.
+    You can also build multiple different cost databases. Make a renamed copy of ``data/bundle/costs.csv`` (e.g. ``data/bundle/costs-optimistic.csv``) and set the variable ``COSTS=data/bundle/costs-optimistic.csv`` in the ``Snakefile``.
 
 .. _solving_cf:
 

@@ -27,7 +27,7 @@ Relevant Settings
         include_tyndp:
 
 .. seealso::
-    Documentation of the configuration file ``config.yaml`` at
+    Documentation of the configuration file ``config/config.yaml`` at
     :ref:`snapshots_cf`, :ref:`toplevel_cf`, :ref:`electricity_cf`, :ref:`load_cf`,
     :ref:`lines_cf`, :ref:`links_cf`, :ref:`transformers_cf`
 
@@ -182,7 +182,9 @@ def build_topology(regions, centroids, line_config):
         planned_lines = planned_lines.to_crs(snakemake.config["crs"]["distance_crs"])
         planned_lines['DESIGN_VOL'] = planned_lines['Voltage']
         planned_lines['status'] = 'planned'
-        lines = pd.concat([lines[['status','DESIGN_VOL','geometry']],planned_lines[['status','DESIGN_VOL','geometry']]])
+        lines = pd.concat(
+            [lines[['status','DESIGN_VOL','geometry']],planned_lines[['status','DESIGN_VOL','geometry']]],
+            ignore_index=True)
 
     lines = build_line_topology(lines, regions)
   
@@ -231,4 +233,3 @@ if __name__ == "__main__":
         save_to_geojson(inter_region_lines.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines)
     else:
         save_to_geojson(buses.to_crs(snakemake.config["crs"]["geo_crs"]),snakemake.output.lines) # Dummy file will not get used if single node model  
-        

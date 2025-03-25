@@ -19,7 +19,7 @@ Relevant Settings
         cutouts:
             {cutout}:
 .. seealso::
-    Documentation of the configuration file ``config.yaml`` at
+    Documentation of the configuration file ``config/config.yaml`` at
     :ref:`atlite_cf`
 Inputs
 ------
