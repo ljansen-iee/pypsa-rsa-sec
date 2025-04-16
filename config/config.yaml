@@ -30,7 +30,7 @@ scenario_matrix:
     "v1.1",
     #"v1.2"
     ]
-  opts: ["2H-Co2L-wacc8"] #CO2L #2920 #"1H-Co2L-wacc0.082","2H-Co2L-wacc8","3H-Co2L-wacc8","4H-Co2L-wacc8","6H-Co2L-wacc8"
+  opts: ["1H-Co2L-wacc8"] #CO2L #2920 #"1H-Co2L-wacc8","2H-Co2L-wacc8","3H-Co2L-wacc8","4H-Co2L-wacc8","6H-Co2L-wacc8"
 
 logging:
   level: INFO

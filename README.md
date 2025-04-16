@@ -67,7 +67,7 @@ A wide range of input data is required to run the model. Download both original 
 
 # Usage
   
-PyPSA-RSA-Sec is built upon the fundamental components in the [PyPSA library](https://pypsa.org/). It is recommended that you familiarising yourself with the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/index.html) before diving into this model. The electricity-sector model PyPSA-RSA is further documented here: [PyPSA-RSA documentation](https://pypsa-za.readthedocs.io/en/latest/). A two-part video series on using PyPSA and PyPSA-RSA is available at [this link](https://meridianeconomics.co.za/our-publications/pypsa-rsa-workshop1/). For questions or bug reports, please join the Discord channels or email in the section [Collaboration](#collaboration). 
+PyPSA-RSA-Sec is built upon the fundamental components in the [PyPSA library](https://pypsa.org/). It is recommended that you familiarise yourself with the [PyPSA documentation](https://pypsa.readthedocs.io/en/latest/index.html) before diving into this model. The electricity-sector model PyPSA-RSA is further documented here: [PyPSA-RSA documentation](https://pypsa-za.readthedocs.io/en/latest/). A two-part video series on using PyPSA and the PyPSA-RSA model version of May 2024 is available at [this link](https://www.youtube.com/watch?v=dLybBgrojEk&ab_channel=MeridianEconomics%28Pty%29Ltd). For questions or bug reports, please join the Discord channels or email in the section [Collaboration](#collaboration). 
 
 ### Configuration
 
