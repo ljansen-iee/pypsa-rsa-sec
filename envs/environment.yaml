@@ -55,7 +55,6 @@ dependencies:
 
  # Plotting
 - plotly
-- python-kaleido
 #- geoviews
 #- hvplot
 - graphviz
@@ -77,3 +76,4 @@ dependencies:
   - tsam>=1.1.0
 #  - git+https://github.com/davide-f/google-drive-downloader@master  # google drive with fix for virus scan
   - git+https://github.com/FRESNA/vresutils@master  # until new pip release > 0.3.1 (strictly)
+  - kaleido==0.1.0post1 # for image export with plotly
