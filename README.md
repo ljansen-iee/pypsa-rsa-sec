@@ -63,7 +63,7 @@ The python package requirements are listed in the `envs/environment.yaml` file. 
    * [COPT](https://www.shanshu.ai/copt)
    * [MindOpt](https://opt.alibabacloud.com/)
 2. **Download the input datasets**:
-A wide range of input data is required to run the model. Download both original and prepared datasets from [Owncloud](https://owncloud.fraunhofer.de/index.php/s/Al43g5c6Gp7EcJw). Download and copy the folders `pypsa-rsa-sec/data/bundle` and `pypsa-rsa-sec/cutouts`. By downloading, the user accepts the [licenses](#licenses) of the original sources. 
+A wide range of input data is required to run the model. Download both original and prepared datasets from [Owncloud](https://owncloud.fraunhofer.de/index.php/s/LzMMqcOwwoQdrvN). Download and copy the folders `pypsa-rsa-sec/data/bundle` and `pypsa-rsa-sec/cutouts`. By downloading, the user accepts the [licenses](#licenses) of the original sources. 
 
 # Usage
   
@@ -105,3 +105,9 @@ Credits and thanks go to the authors and the PyPSA community of [PyPSA-Eur](http
 # Licenses
 
 PyPSA-RSA-Sec is released under several licenses. The source code of PyPSA-RSA-Sec is released under the license [AGPL-3.0-or-later](./licenses/AGPL-3.0-or-later.txt) license. Intermediate and result data files are released under the [CC-BY-4.0](./licenses/CC-BY-4.0.txt) license. In addition, different licenses and terms of use apply to the different input datasets. By downloading and using the data provided, the user of the model agrees to the licenses specified by the original sources. 
+
+# Citing 
+
+When using PyPSA-RSA-Sec for your research, please cite the following study and reference or mention the predecessor projects, PyPSA-RSA and PyPSA-Earth.
+
+Jansen, Lukas; Morison, Storm; Duque Pérez, Estefanía; Bekker, Bernard; Häckner, Benedikt; Bard, Jochen (2025): PtX Allocation Study for South Africa. Power-to-X to enable and advance the long-term transformation of South Africa’s Energy System. Edited by GIZ, International PtX Hub. Fraunhofer IEE, Stellenbosch University, Agora Industry. Berlin. Available online at https://ptx-hub.org/publication/ptx-allocation-study-south-africa/.
